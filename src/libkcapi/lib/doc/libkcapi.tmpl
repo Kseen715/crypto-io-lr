@@ -1,0 +1,935 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE book PUBLIC "-//OASIS//DTD DocBook XML V45//EN"
+	"http://www.oasis-open.org/docbook/xml/4.5/docbookx.dtd" []>
+
+<book id="libkcapi" revision="@@LIBVERSION@@">
+ <bookinfo>
+  <title>Linux Kernel Crypto API User Space Interface Library</title>
+
+  <edition>@@LIBVERSION@@</edition>
+
+  <authorgroup>
+   <author>
+    <firstname>Stephan</firstname>
+    <surname>Mueller</surname>
+    <affiliation>
+     <address>
+      <email>smueller@chronox.de</email>
+     </address>
+    </affiliation>
+   </author>
+  </authorgroup>
+
+  <copyright>
+   <year>2014</year>
+   <holder>Stephan Mueller</holder>
+  </copyright>
+
+
+  <legalnotice>
+   <para>
+     This documentation is free software; you can redistribute
+     it and/or modify it under the terms of the GNU General Public
+     License as published by the Free Software Foundation; either
+     version 2 of the License, or (at your option) any later
+     version.
+   </para>
+
+   <para>
+     This program is distributed in the hope that it will be
+     useful, but WITHOUT ANY WARRANTY; without even the implied
+     warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+     See the GNU General Public License for more details.
+   </para>
+
+   <para>
+     You should have received a copy of the GNU General Public
+     License along with this program; if not, write to the Free
+     Software Foundation, Inc., 59 Temple Place, Suite 330, Boston,
+     MA 02111-1307 USA
+   </para>
+
+   <para>
+     For more details see the file COPYING in the source
+     distribution of Linux.
+   </para>
+  </legalnotice>
+ </bookinfo>
+
+ <toc></toc>
+
+ <chapter id="Intro">
+  <title>libkcapi - Linux Kernel Crypto API User Space Interface Library</title>
+
+  <para>This documentation applies to version @@LIBVERSION@@.</para>
+
+  <para>
+   The Linux kernel exports a network interface of type AF_ALG to allow user
+   space to utilize the kernel crypto API.
+  </para>
+
+  <para>
+   libkcapi uses this network interface and exports easy to use APIs so that
+   a developer does not need to consider the low-level network interface
+   handling.
+  </para>
+
+  <para>
+   The library does not implement any cipher algorithms. All consumer requests
+   are sent to the kernel for processing. Results from the kernel crypto API
+   are returned to the consumer via the library API.
+  </para>
+
+  <para>
+   The kernel interface and therefore this library can be used by unprivileged
+   processes.
+  </para>
+
+  <sect1><title>Version Number Schema</title>
+   <para>
+    The version numbers for this library have the following schema:
+    MAJOR.MINOR.PATCHLEVEL
+   </para>
+
+   <para>
+    Changes in the major number implies API and ABI incompatible changes, or
+    functional changes that require consumer to be updated (as long as this
+    number is zero, the API is not considered stable and can change without a
+    bump of the major version).
+   </para>
+
+   <para>
+    Changes in the minor version are API compatible, but the ABI may change.
+    Functional enhancements only are added. Thus, a consumer can be left
+    unchanged if enhancements are not considered. The consumer only needs to
+    be recompiled.
+   </para>
+
+   <para>
+    Patchlevel changes are API / ABI compatible. No functional changes, no
+    enhancements are made. This release is a bug fixe release only. The
+    consumer can be left unchanged and does not need to be recompiled.
+   </para>
+  </sect1>
+
+  <sect1><title>Purpose Of AF_ALG</title>
+   <para>
+    With the presence of numerous user space cryptographic libraries,
+    one may ask why is there a need for the kernel to expose its kernel
+    crypto API to user space. As there are system calls and potentially
+    memory copies needed before a cipher can be invoked, it should be
+    typically slower than user space shared libraries.
+   </para>
+
+   <para>
+    There are several reasons for AF_ALG:
+     <itemizedlist>
+      <listitem>
+       <para>
+        The first and most important item is the access to hardware
+        accelerators and hardware devices whose technical interface can
+        only be accessed from the kernel mode / supervisor state of the
+        processor. Such support cannot be used from user space except
+        through AF_ALG.
+       </para>
+      </listitem>
+      <listitem>
+       <para>
+        When using user space libraries, all key material and other
+        cryptographic sensitive parameters remains in the calling
+        application's memory even when the application supplied the
+        information to the library. When using AF_ALG, the key material
+        and other sensitive parameters are handed to the kernel. The
+        calling application now can reliably erase that information
+        from its memory and just use the cipher handle to perform
+        the cryptographic operations. If the application is cracked
+        an attacker cannot obtain the key material.
+       </para>
+      </listitem>
+      <listitem>
+       <para>
+        On memory constrained systems like embedded systems, the additional
+        memory footprint of a user space cryptographic library may
+        be too much. As the kernel requires the kernel crypto API to be
+        present, reusing existing code should reduce the memory footprint.
+       </para>
+      </listitem>
+     </itemizedlist>
+   </para>
+
+  </sect1>
+ </chapter>
+
+ <chapter id="Usage"><title>Programming Guidelines</title>
+  <para>
+   A consumer has to use the kcapi.h header file to link with libkcapi. The
+   linking has to be performed using -lkcapi.
+  </para>
+
+  <para>
+   In case a consumer does not want a shared library, the libkcapi C file and
+   header file can also just copied to the consumer code and compiled along
+   with it.
+  </para>
+
+  <para>
+   A general requirement must be observed: setting of keys must be performed
+   before any operation. Re-setting of keys is only permissible once
+   all data in flight (sent to the kernel but the kernel's result is not yet
+   obtained) is processed, i.e. no data is in flight any more.
+  </para>
+
+  <sect1><title>Convenience Functions</title>
+   <para>
+    To support various use cases, the API provided with libkcapi is extensive.
+    Though, some developers want to simply use a given cipher without any
+    specific details. To accommodate such users, libkcapi provides convenience
+    functions or convenience wrappers.
+   </para>
+
+   <para>
+    The convenience functions provide exactly one function call to perform one
+    complete cipher operation, such as an AES CBC encryption operation or a
+    SHA-256 hashing. The caller only needs to provide the input and
+    output buffers of his data. The entire intrinsic operation of libkcapi
+    is hidden from the user.
+   </para>
+
+   <para>
+    Convenience functions are provided for the different cipher types. They are
+    clearly marked in the API specification below.
+   </para>
+  </sect1>
+
+  <sect1><title>Synchronous Symmetric Cipher API</title>
+   <para>
+    Symmetric ciphers can be used in the following different ways:
+     <itemizedlist>
+      <listitem>
+       <para>
+        One-shot API: The one-shot API performs an encryption operation
+        with one API call. With that API call, the caller provides the input
+        data and immediately receives the output from the cipher operation.
+       </para>
+      </listitem>
+      <listitem>
+       <para>
+        Stream API: With the stream API, the caller can implement independent
+        calls to send data to the kernel and receive data from the kernel.
+        Multiple send calls can be inter-mixed with multiple receive calls.
+        If the kernel buffer is full, the caller of a subsequent send call will
+        be put to sleep. Conversely, if the buffer is empty, a caller trying
+        to read data resulting from a cipher operation will be put to sleep.
+        Sleeping callers will be woken up by the kernel once buffer space
+        becomes available or data becomes available, respectively. The detached
+        nature of the sending/receiving operation allows the implementation of
+        multi-threaded applications where one or more threads send data and one
+        or more threads receive data. The threads must operate on the same
+        cipher handle. However, access to that cipher handle does not need to
+        be serialized when the stream API calls are invoked as the API calls
+        only read the cipher handle.
+       </para>
+      </listitem>
+     </itemizedlist>
+   </para>
+  </sect1>
+
+  <sect1><title>Asynchronous Symmetric Cipher API</title>
+   <para>
+    In addition to the symmetric cipher API, an asynchronous API is offered
+    with the kcapi_cipher_*_aio and kcapi_aead_*_aio API calls. The concept of
+    that API is to perform parallel operations of multiple encryption or
+    decryption data streams.
+   </para>
+
+   <para>
+    To use the AIO API, the caller must use the KCAPI_INIT_AIO with the
+    kcapi_cipher_init function call to set up all additional logistics for
+    handing AIO. That means, users which are not interested in AIO will
+    not suffer from the additional memory overhead including the time required
+    to allocate that memory required for AIO.
+   </para>
+
+   <para>
+    This implies that the asynchronous API handles the scatter-gather lists
+    referenced by the IOVECs differently compared to the synchronous APIs.
+    Whereas the synchronous API references different parts of plaintext or
+    ciphertext that are processed with one cipher operation, the IOVECs of the
+    asynchronous API references plaintext or ciphertext where each IOVEC
+    is processed with an independent cipher operation. I.e. when using AES-CBC
+    with the synchronous API and the scatter-gather lists, all input data is
+    sent to one invocation of the AES-CBC cipher. Conversely, the asynchronous
+    API invokes one individual AES-CBC operation for each individual IOVEC.
+   </para>
+
+   <para>
+    The asynchronous API is designed to perform an in-place operation where
+    the buffers for the input data are used to store the output data.
+   </para>
+
+   <para>
+    The asynchronous API in libkcapi as well as the kernel has a higher
+    overhead for setting the cipher operation up. That means that if the
+    caller only uses a one IOVEC with one associated cipher operation, the
+    asynchronous API is expected to be slower compared to the synchronous API.
+    But already with two or three combined cipher operations, the AIO
+    API should be faster than the synchronous API. You may test the difference
+    in performance with the test/kcapi test application by using the options -f
+    for measuring the time of cipher operations in nanoseconds, -d for the
+    number of parallel invocations and -x 1 for a symmetric one-shot cipher
+    invocation and -x 9 for an asymmetric cipher operation with the given input
+    data.
+   </para>
+
+   <para>
+    The kernel offers the AIO interface since kernel version 4.1 (symmetric
+    ciphers) and 4.7 (AEAD ciphers). The libkcapi implements a transparent
+    fallback to use the synchronous cipher API in case the AIO support is not
+    present for the current kernel. This allows the calling users to be
+    agnostic of the kernel support. Nonetheless, libkcapi with report the lack
+    of AIO support if AIO is requested as the fallback implementation has a
+    slight performance overhead.
+   </para>
+  </sect1>
+
+  <sect1><title>AEAD Cipher API</title>
+   <para>
+    AEAD ciphers implement a very similar API approach as the symmetric ciphers:
+     <itemizedlist>
+      <listitem>
+       <para>
+        One-shot API: The one-shot API performs an encryption operation
+        with one API call. With that API call, the caller provides the input
+        data and immediately receives the output from the cipher operation.
+       </para>
+      </listitem>
+      <listitem>
+       <para>
+        Stream API: With the stream API, the caller can implement independent
+        calls to send data to the kernel and receive data from the kernel.
+        However, unlike the symmetric cipher API, one AEAD cipher operation
+        must be considered as one unit as the integrity value is calculated
+        for one encryption or decryption operation. The caller can use multiple
+        calls to provide the input data. The last chunk of data must be
+        sent to the kernel with the API call marking the last submission.
+        Then, the cipher operation can be triggered with the recvmsg invocation.
+        It is possible to implement a multi-threaded application as the
+        thread triggering the cipher operation is put to sleep until the last
+        block is received. Once the last block is received, the caller waiting
+        on the cipher operation is woken up to obtain the data.
+       </para>
+      </listitem>
+     </itemizedlist>
+   </para>
+
+   <sect2><title>Aynchronous AEAD Cipher API</title>
+    <para>
+     Similarly to the symmetric cipher API, the AEAD API supports
+     asynchronous operation as well. The same concept regarding the IOVECs
+     applies as discussed for the asynchronous symmetric cipher API above.
+    </para>
+   </sect2>
+
+   <sect2><title>AEAD Memory Structure</title>
+    <para>
+     When using the stream API for AEAD, the caller must observe a particular
+     order of data components. It is permissible that for each of the following
+     data components multiple send calls are used. But in total, all send calls
+     must send the AEAD data in the requested sequence. That sequence has
+     changed with kernel 4.9. The following sequence is applicable to kernel
+     versions up to and including 4.8:
+    </para>
+
+    <orderedlist>
+     <listitem>
+      <para>Associated Authentication Data: The AAD must be provided as a first
+      chunk.</para>
+     </listitem>
+     <listitem>
+      <para>Plaintext / Ciphertext: Following the AAD, the entire plaintext
+      or ciphertext is provided that shall be encrypted and integrity protected
+      or decrypted and whose integrity shall be verified.</para>
+     </listitem>
+     <listitem>
+      <para>Authentication Tag: Regardless of an encryption or decryption,
+      the authentication tag memory must be provided.</para>
+     </listitem>
+    </orderedlist>
+
+    <para>
+     The caller must provide memory that is identical in size for the input and
+     output data, even parts of the memory is unused. For example, for
+     encryption, the AEAD cipher operation only needs the AAD and the plaintext.
+     Nonetheless, the interface requires that the memory is big enough to
+     hold the tag as well. This requirement particularly aids the in-place
+     cipher operation.
+    </para>
+
+    <para>
+     Starting with kernel 4.9, the interface changed slightly such that the
+     authentication tag memory is only needed in the output buffer for
+     encryption and in the input buffer for decryption.
+    </para>
+
+    <para>
+     To allow the calling application to be agnostic about the differences
+     in the kernel interface, the calling application is offered additional
+     API calls which should be used as follows:
+    </para>
+
+    <orderedlist>
+     <listitem>
+      <para>Obtain the required input buffer length for the cryptographic
+      operation using the calls kcapi_aead_inbuflen_enc or
+      kcapi_aead_inbuflen_dec.</para>
+     </listitem>
+     <listitem>
+      <para>Obtain the required output buffer length for the cryptographic
+      operation using the APIs of kcapi_aead_outbuflen_enc or
+      kcapi_aead_outbuflen_dec.</para>
+     </listitem>
+
+     <listitem>
+      <para>For an in-place operation with a linear buffer, do the following
+      (for an example, see test/kcapi-main.c:cavs_aead()):
+       <orderedlist>
+        <listitem>
+         <para>allocate memory that is max(inbuflen, outbuflen),</para>
+        </listitem>
+        <listitem>
+         <para>call to kcapi_aead_getdata_input and kcapi_aead_getdata_output
+         with the allocated memory pointer to obtain the pointers into that
+         allocated memory where the AAD, plaintext / ciphertext and tag is to be
+         provided,</para>
+        </listitem>
+        <listitem>
+         <para>fill these AAD, plaintext/ciphertext and tag pointers with the
+         respective data if they are non-NULL -- note, a NULL pointer may
+         be returned for the tag pointer,</para>
+        </listitem>
+        <listitem>
+         <para>invoke the crypto operation with the pointer to the allocated
+         buffer and inbuflen is supplied to the.</para>
+        </listitem>
+       </orderedlist>
+      </para>
+     </listitem>
+
+     <listitem>
+      <para>For for separate, potentially non-contiguous buffers, do the
+      following (for an example, see test/kcapi-main.c:cavs_aead_stream()):
+       <orderedlist>
+        <listitem>
+         <para>ensure that your total buffer size for input and output complies
+         with the result from the buffer lengths supplied by the aforementioned
+         API calls,</para>
+        </listitem>
+        <listitem>
+         <para>call to kcapi_aead_getdata_input and kcapi_aead_getdata_output
+         with NULL pointers for the memory buffers to obtain the lengths for the
+         AEAD data components,</para>
+        </listitem>
+        <listitem>
+         <para>initialize the IOVECs and/or invoke the stream API with the
+         independent buffers with the AAD, plaintext/ciphertext and tag if the
+         associated length values are non-zero.</para>
+        </listitem>
+       </orderedlist>
+      </para>
+     </listitem>
+
+    </orderedlist>
+
+    <para>
+     If the caller chooses to not implement an in-place operation, the kernel
+     will copy the AAD data into the output buffer, so that the destination
+     buffer will hold the the ciphertext or plaintext, the AAD data and the
+     authentication tag (encryption only). The memory structure of the
+     destination buffer is identical to the source buffer. (This is currently
+     not yet implemented for all ciphers and will be fixed in future
+     kernel versions.)
+    </para>
+   </sect2>
+  </sect1>
+
+  <sect1><title>Message Digest API</title>
+   <para>
+    Again, like for the symmetric ciphers, the message digest API implements
+    the one-shot and the stream use cases. In addition, convenience wrapper
+    functions for SHA-1 through SHA-512 are provided where the caller only
+    provides its input data and the return buffer for obtaining a message
+    digest or keyed message digest.
+   </para>
+  </sect1>
+
+  <sect1><title>Asymmetric Cipher API</title>
+   <para>
+    The asymmetric cipher API provides access to the raw asymmetric operations
+    (i.e. modular exponentiation).
+   </para>
+  </sect1>
+
+  <sect1><title>Zero Copy</title>
+   <para>
+    When using the one-shot API for symmetric ciphers, AEAD ciphers,
+    as well as message digests, the library uses the zero copy interface to
+    provide the input data to the kernel. That means, the kernel operates on
+    the user space pages.
+   </para>
+
+   <para>
+    To ensure the efficiency of this zero copy approach, the caller should
+    use a page-aligned data buffer for the input data. Non-aligned buffers
+    would work also, but the kernel would need to perform more page
+    accesses, lowering the throughput. Such an aligned buffer can be created,
+    for example, using the following call - the value 4096 should be the size
+    of one page on the system:
+   </para>
+
+   <programlisting>
+    unsigned char buf[4096] __attribute__((__aligned__(4096)));
+   </programlisting>
+   
+   <programlisting>
+    unsigned char *buf;
+    posix_memalign((void *)&amp;buf, PAGE_SIZE, buflen);
+   </programlisting>
+  </sect1>
+
+  <sect1><title>Memory Allocation</title>
+   <para>
+    The library libkcapi uses the data structure struct kcapi_handle as the
+    cipher handle that allows the consumer to operate with the various function
+    calls of this library.
+   </para>
+
+   <para>
+    Unlike other crypto libraries, libkcapi does not allocate any memory or
+    performs operations that implies memory allocation. struct kcapi_handle only
+    holds pointers to the consumer-provided buffers with sensitive data. That
+    means that the buffers holding sensitive data like keys are under full
+    control of the consumer. Therefore, this library does not offer any memory
+    allocation or secure memory clearing functions.
+   </para>
+
+   <para>
+    The consumer must ensure that the memory is appropriately sanitized. The
+    caller does not need to sanitize struct kcapi_handle as it does not contain
+    any sensitive data.
+   </para>
+  </sect1>
+
+  <sect1><title>Asynchronous I/O Use Cases and Libkcapi</title>
+   <para>
+    The kernel crypto API user space interface supports different use cases
+    with the asynchronous I/O operations which are illustrated in the following
+    sections. These sections also illustrate the API calls to be used to follow
+    the respective use cases.
+   </para>
+
+   <para>
+    All APIs that perform synchronous operation do not have different purposes
+    and thus do not require special precautions when using them.
+   </para>
+
+   <para>
+    The different use cases round asynchronous I/O revolve around different
+    ways how to send data to the kernel and to retrieve processed data.
+   </para>
+
+   <sect2><title>Multiple Staged Cipher Operations</title>
+    <para>
+     Using the kcapi_cipher_*_aio and kcapi_aead_*_aio API calls, a caller can
+     supply one or more IOVECs of data to the kernel. However, the caller can
+     only supply one IV to the kernel.
+    </para>
+
+    <para>
+     The API calls only allow specifying one integer defining the number of
+     IOVECs in the arrays of the input data as well as the output data.
+     The libkcapi library uses the input and output IOVECs as pairs. I.e.
+     the first IOVEC of the input array relate to the first IOVEC of the output
+     array, and so on.
+    </para>
+
+    <para>
+     The kernel invokes the cipher operation when a recvmsg system call is
+     processed. The AIO handling transforms each output IOVEC into one separate
+     invocation of the recvmsg handler that processes the data submitted with
+     the corresponding input IOVEC. This means, each output IOVEC will
+     trigger one cipher operation. When multiple IOVECs are processed by the
+     kernel's AIO handling, all resulting recvmsg calls are invoked with the
+     in the data same order specified by the list of IOVECs.
+    </para>
+
+    <para>
+     WARNING: Currently, it is not guaranteed that the drivers perform the proper
+     serialization of the parallel processing of the different IOVECs. For
+     example, when providing two IOVECs, they may be both using the initially
+     set IV. Thus, they are not chained. User space is able to serialize
+     the AIO operation in this case by invoking the AIO API calls with
+     input/output IOVEC arrays holding one entry each only. However, this
+     would imply that this type of invocation will not be different from a
+     synchronous invocation.
+    </para>
+   </sect2>
+
+   <sect2><title>Multiple Separate Cipher Operations</title>
+    <para>
+     The kernel and thus libkcapi supports the use case where several of the
+     aforementioned multiple staged cipher operations are can be performed
+     in parallel which are totally isolated from each other. In this case,
+     different IVs are used.
+    </para>
+
+    <para>
+     Using the kcapi_handle_reinit libkcapi API call, the caller can obtain
+     a new cipher handle from an existing handle. Both share the same key
+     and cipher -- the kernel crypto API maintains the same TFM data structure
+     for both. However, both cipher handles can now encrypt or decrypt data
+     completely isolated from each other. Specifically, the following data
+     of a cipher operation is isolated between the different cipher handles --
+     this is all data that is not set with a setsockopt(2) system call:
+
+     <itemizedlist>
+      <listitem>
+       <para>Input: plaintext (encryption) or ciphertext (decryption)</para>
+      </listitem>
+      <listitem>
+       <para>Output: plaintext (decryption) or ciphertext (encryption)</para>
+      </listitem>
+      <listitem>
+       <para>IV</para>
+      </listitem>
+      <listitem>
+       <para>AEAD: associated authenticated data (AAD) and its length</para>
+      </listitem>
+      <listitem>
+       <para>AEAD: tag</para>
+      </listitem>
+     </itemizedlist>
+
+     The following data is shared between the different cipher handles -- this
+     covers all data that can be set with a setsockopt(2) system call:
+
+     <itemizedlist>
+      <listitem>
+       <para>Key</para>
+      </listitem>
+      <listitem>
+       <para>AEAD: Tag length</para>
+      </listitem>
+     </itemizedlist>
+
+     This means that the "multiple staged cipher operations" discussed above
+     can be performed with each cipher handle independently.
+    </para>
+
+    <para>
+     The call kcapi_handle_reinit does not open another socket, but implies
+     that only a new accept(2) system call is performed.
+    </para>
+   </sect2>
+  </sect1>
+
+  <sect1><title>Kernel Interfaces</title>
+   <para>
+    Depending on the version of your kernel, some of the kernel interfaces
+    the library depends on are not available. When using the respective library
+    API functions, an error is returned during initialization of the cipher
+    handle. The following interfaces are available:
+   </para>
+
+   <itemizedlist>
+    <listitem>
+     <para>kcapi_md_* usable since kernel version 3.0</para></listitem>
+    <listitem>
+     <para>kcapi_cipher_* usable since kernel version 3.0</para>
+    </listitem>
+    <listitem>
+     <para>
+      kcapi_rng_* kernel interface integrated into kernel version 4.0
+     </para>
+    </listitem>
+    <listitem>
+     <para>
+      kcapi_aead_* kernel interface added to cryptodev-2.6 tree and should be
+      usable with kernel version 4.2.
+     </para>
+    </listitem>
+    <listitem>
+     <para>
+      kcapi_akcipher_* kernel interface is discussed for inclusion to the
+      cryptodev-2.6 kernel tree.
+     </para>
+    </listitem>
+   </itemizedlist>
+
+   <sect2><title>Kernel Configuration</title>
+    <para>
+     To use libkcapi, the following kernel options need to be enabled:
+    </para>
+
+    <itemizedlist>
+     <listitem>
+      <para>
+       CONFIG_CRYPTO_USER enables the NETLINK_CRYPTO interface to allow
+       obtaining information about the loaded ciphers. When compiled as module
+       in older kernels (pre 3.18) the resulting crypto_user kernel module must
+       be loaded manually.
+      </para>
+     </listitem>
+     <listitem>
+      <para>
+       CONFIG_CRYPTO_USER_API enables the core functionality of the user space
+       interface handler.
+      </para>
+     </listitem>
+     <listitem>
+      <para>
+       CONFIG_CRYPTO_USER_API_HASH enables the "hash" interface (i.e. allows
+       the use of all message digest and keyed message digest ciphers).
+      </para>
+     </listitem>
+     <listitem>
+      <para>
+       CONFIG_CRYPTO_USER_API_SKCIPHER enables the "skcipher" interface
+       to use symmetric cipher algorithms.
+      </para>
+     </listitem>
+     <listitem>
+      <para>
+       CONFIG_CRYPTO_USER_API_AEAD enables the "aead" interface to use AEAD
+       cipher algorithms. This support is currently discussed on LKML and
+       therefore not present in the mainline kernel.
+      </para>
+     </listitem>
+     <listitem>
+      <para>
+       CONFIG_CRYPTO_USER_API_RNG enables the "rng" interface to use the
+       random number generators.
+      </para>
+     </listitem>
+
+     <listitem>
+      <para>
+       CONFIG_CRYPTO_USER_API_AKCIPHER enables the "akcipher" interface to use
+       the asymmetric ciphers. This support is currently discussed on LKML
+       and therefore not present in the mainline kernel.
+      </para>
+     </listitem>
+    </itemizedlist>
+
+    <para>
+     In addition, the following patch must be applied if a kernel less than
+     3.19-rc1 or the cryptodev-2.6 kernel tree is used:
+     https://git.kernel.org/cgit/linux/kernel/git/herbert/cryptodev-2.6.git/commit/?id=5d4a5e770d97d87082067886e7097c920b338da5
+    </para>
+
+    <para>
+     In addition, the following patch must be applied if a kernel less than
+     3.19-rc1 or the cryptodev-2.6 kernel tree is used:
+     https://git.kernel.org/cgit/linux/kernel/git/herbert/cryptodev-2.6.git/commit/?id=af8e80731a94ff9de9508b01d9e5d931d538dc6b
+    </para>
+
+    <para>
+     In addition, the following patch must be applied if a kernel less than
+     3.19-rc1 or the cryptodev-2.6 kernel tree is used:
+     https://git.kernel.org/cgit/linux/kernel/git/herbert/cryptodev-2.6.git/commit/?id=25fb8638e919bc7431a73f2fb4a9713818ae2c9d
+    </para>
+   </sect2>
+  </sect1>
+
+  <sect1><title>Example Code</title>
+   <para>
+    Example code covering all available API calls is provided with the test
+    code in the test/ directory.
+   </para>
+  </sect1>
+ </chapter>
+
+ <chapter id="API"><title>Programming Interface</title>
+  <sect1><title>Common API</title>
+!Pkcapi.h Common API
+!Fkcapi.h kcapi_set_verbosity
+!Fkcapi.h kcapi_versionstring
+!Fkcapi.h kcapi_version
+!Fkcapi.h kcapi_pad_iv
+!Fkcapi.h kcapi_memset_secure
+!Fkcapi.h kcapi_handle_reinit
+!Fkcapi.h kcapi_set_maxsplicesize
+!Fkcapi.h kcapi_get_maxsplicesize
+   </sect1>
+   <sect1><title>Symmetric Cipher API - Generic</title>
+    <para>
+     These generic API for symmetric ciphers calls are to be used for both, the
+     one-shot and the stream encryption/decryption operations.
+    </para>
+!Pkcapi.h Symmetric Cipher API
+!Fkcapi.h kcapi_cipher_init
+!Fkcapi.h kcapi_cipher_destroy
+!Fkcapi.h kcapi_cipher_setkey
+!Fkcapi.h kcapi_cipher_ivsize
+!Fkcapi.h kcapi_cipher_blocksize
+   </sect1>
+   <sect1><title>Synchronous Symmetric Cipher API - One Shot</title>
+!Fkcapi.h kcapi_cipher_encrypt
+!Fkcapi.h kcapi_cipher_decrypt
+   </sect1>
+   <sect1><title>Symmetric Cipher API - Convenience</title>
+!Fkcapi.h kcapi_cipher_enc_aes_cbc
+!Fkcapi.h kcapi_cipher_dec_aes_cbc
+!Fkcapi.h kcapi_cipher_enc_aes_ctr
+!Fkcapi.h kcapi_cipher_dec_aes_ctr
+!Fkcapi.h kcapi_cipher_enc_sm4_cbc
+!Fkcapi.h kcapi_cipher_dec_sm4_cbc
+!Fkcapi.h kcapi_cipher_enc_sm4_ctr
+!Fkcapi.h kcapi_cipher_dec_sm4_ctr
+   </sect1>
+   <sect1><title>Asynchronous Symmetric Cipher API - One Shot</title>
+!Fkcapi.h kcapi_cipher_encrypt_aio
+!Fkcapi.h kcapi_cipher_decrypt_aio
+   </sect1>
+   <sect1><title>Synchronous Symmetric Cipher API - Stream</title>
+    <para>The stream API requires that first the cipher operation type is
+    set with the init call, followed by an arbitrary number and mix of the
+    update and op calls.</para>
+!Fkcapi.h kcapi_cipher_stream_init_enc
+!Fkcapi.h kcapi_cipher_stream_init_dec
+!Fkcapi.h kcapi_cipher_stream_update
+!Fkcapi.h kcapi_cipher_stream_update_last
+!Fkcapi.h kcapi_cipher_stream_op
+   </sect1>
+   <sect1><title>AEAD Cipher API - Generic</title>
+    <para>
+     These generic API for symmetric ciphers calls are to be used for both, the
+     one-shot and the stream encryption/decryption operations.
+    </para>
+!Pkcapi.h AEAD Cipher API
+!Fkcapi.h kcapi_aead_init
+!Fkcapi.h kcapi_aead_destroy
+!Fkcapi.h kcapi_aead_setkey
+!Fkcapi.h kcapi_aead_setassoclen
+!Fkcapi.h kcapi_aead_settaglen
+!Fkcapi.h kcapi_aead_ivsize
+!Fkcapi.h kcapi_aead_blocksize
+!Fkcapi.h kcapi_aead_authsize
+!Fkcapi.h kcapi_aead_inbuflen_enc
+!Fkcapi.h kcapi_aead_inbuflen_dec
+!Fkcapi.h kcapi_aead_outbuflen_enc
+!Fkcapi.h kcapi_aead_outbuflen_dec
+!Fkcapi.h kcapi_aead_ccm_nonce_to_iv
+!Fkcapi.h kcapi_aead_getdata_input
+!Fkcapi.h kcapi_aead_getdata_output
+   </sect1>
+   <sect1><title>Synchronous AEAD Cipher API - One Shot</title>
+!Fkcapi.h kcapi_aead_encrypt
+!Fkcapi.h kcapi_aead_decrypt
+   </sect1>
+   <sect1><title>Aynchronous AEAD Cipher API - One Shot</title>
+!Fkcapi.h kcapi_aead_encrypt_aio
+!Fkcapi.h kcapi_aead_decrypt_aio
+   </sect1>
+      <sect1><title>Synchronous AEAD Cipher API - Stream</title>
+!Fkcapi.h kcapi_aead_stream_init_enc
+!Fkcapi.h kcapi_aead_stream_init_dec
+!Fkcapi.h kcapi_aead_stream_update
+!Fkcapi.h kcapi_aead_stream_update_last
+!Fkcapi.h kcapi_aead_stream_op
+   </sect1>
+   <sect1><title>Message Digest Cipher API - Generic</title>
+!Pkcapi.h Message Digest Cipher API
+!Fkcapi.h kcapi_md_init
+!Fkcapi.h kcapi_md_destroy
+!Fkcapi.h kcapi_md_setkey
+!Fkcapi.h kcapi_md_digestsize
+   </sect1>
+   <sect1><title>Message Digest Cipher API - One Shot</title>
+!Fkcapi.h kcapi_md_digest
+   </sect1>
+   <sect1><title>Message Digest Cipher API - Convenience</title>
+!Fkcapi.h kcapi_md_sha1
+!Fkcapi.h kcapi_md_sha224
+!Fkcapi.h kcapi_md_sha256
+!Fkcapi.h kcapi_md_sha384
+!Fkcapi.h kcapi_md_sha512
+!Fkcapi.h kcapi_md_sm3
+!Fkcapi.h kcapi_md_sha3_224
+!Fkcapi.h kcapi_md_sha3_256
+!Fkcapi.h kcapi_md_sha3_384
+!Fkcapi.h kcapi_md_sha3_512
+!Fkcapi.h kcapi_md_hmac_sha1
+!Fkcapi.h kcapi_md_hmac_sha224
+!Fkcapi.h kcapi_md_hmac_sha256
+!Fkcapi.h kcapi_md_hmac_sha384
+!Fkcapi.h kcapi_md_hmac_sha512
+!Fkcapi.h kcapi_md_hmac_sm3
+   </sect1>
+   <sect1><title>Message Digest Cipher API - Stream</title>
+!Fkcapi.h kcapi_md_update
+!Fkcapi.h kcapi_md_final
+   </sect1>
+   <sect1><title>Random Number API</title>
+!Pkcapi.h Random Number API
+!Fkcapi.h kcapi_rng_init
+!Fkcapi.h kcapi_rng_destroy
+!Fkcapi.h kcapi_rng_seed
+!Fkcapi.h kcapi_rng_generate
+!Fkcapi.h kcapi_rng_seedsize
+   </sect1>
+   <sect1><title>Random Number API - Convenience</title>
+!Fkcapi.h kcapi_rng_get_bytes
+   </sect1>
+   <sect1><title>Asymmetric Cipher API - Generic</title>
+!Pkcapi.h Asymmetric Cipher API
+!Fkcapi.h kcapi_akcipher_init
+!Fkcapi.h kcapi_akcipher_destroy
+!Fkcapi.h kcapi_akcipher_setkey
+!Fkcapi.h kcapi_akcipher_setpubkey
+   </sect1>
+   <sect1><title>Synchronous asymmetric Cipher API - One Shot</title>
+!Fkcapi.h kcapi_akcipher_encrypt
+!Fkcapi.h kcapi_akcipher_decrypt
+!Fkcapi.h kcapi_akcipher_sign
+!Fkcapi.h kcapi_akcipher_verify
+   </sect1>
+   <sect1><title>Aynchronous asymmetric Cipher API - One Shot</title>
+!Fkcapi.h kcapi_akcipher_encrypt_aio
+!Fkcapi.h kcapi_akcipher_decrypt_aio
+!Fkcapi.h kcapi_akcipher_sign_aio
+!Fkcapi.h kcapi_akcipher_verify_aio
+   </sect1>
+   <sect1><title>Asymmetric Cipher API - Stream</title>
+!Fkcapi.h kcapi_akcipher_stream_init_enc
+!Fkcapi.h kcapi_akcipher_stream_init_dec
+!Fkcapi.h kcapi_akcipher_stream_init_sgn
+!Fkcapi.h kcapi_akcipher_stream_init_vfy
+!Fkcapi.h kcapi_akcipher_stream_update
+!Fkcapi.h kcapi_akcipher_stream_op
+   </sect1>
+   <sect1><title>Key Protocol Primitives API - Generic</title>
+!Fkcapi.h kcapi_kpp_init
+!Fkcapi.h kcapi_kpp_destroy
+!Fkcapi.h kcapi_kpp_dh_setparam_pkcs3
+!Fkcapi.h kcapi_kpp_ecdh_setcurve
+!Fkcapi.h kcapi_kpp_setkey
+   </sect1>
+   <sect1><title>Synchronous Key Protocol Primitives API - One Shot</title>
+!Fkcapi.h kcapi_kpp_keygen
+!Fkcapi.h kcapi_kpp_ssgen
+   </sect1>
+   <sect1><title>Asynchronous Key Protocol Primitives API - One Shot</title>
+!Fkcapi.h kcapi_kpp_keygen_aio
+!Fkcapi.h kcapi_kpp_ssgen_aio
+   </sect1>
+   <sect1><title>Key Derivation Functions</title>
+!Pkcapi.h Key Derivation Functions
+!Fkcapi.h kcapi_kdf_dpi
+!Fkcapi.h kcapi_kdf_fb
+!Fkcapi.h kcapi_kdf_ctr
+!Fkcapi.h kcapi_pbkdf
+!Fkcapi.h kcapi_pbkdf_iteration_count
+!Fkcapi.h kcapi_hkdf
+   </sect1>
+ </chapter>
+</book>
