@@ -1,0 +1,1 @@
+make build && .\build\cifs.exe -m dec -k .\temp\key.bin -i .\temp\iv.bin -f .\temp\demo.enc -c no -o .\temp\demo-dec.png

@@ -1,0 +1,1 @@
+make build && .\build\cifs.exe -m keygen -g .\temp\key.bin
