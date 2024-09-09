@@ -438,7 +438,7 @@ uint8_t* kpp_keygen(const char *ciphername)
 
 #define NT_SUCCESS(Status) (((NTSTATUS)(Status)) >= 0)
 #define AES_KEY_SIZE 16 // 128 bits
-#define CHUNK_SIZE 4096
+#define CHUNK_SIZE 1024 * 1024 * 1024 // 1024 MB
 
 /// @brief Generate AES key and save it to a file
 /// @param key_path [in] path to the key file
@@ -582,7 +582,7 @@ void win_read_aes_iv(char *iv_path, BYTE **ivBlob, DWORD *ivSize) {
         // [in] режим сцепления блоков
         // [out] путь к инициализирующему вектору
         // [out] путь к зашифрованному файлу
-void win_encrypt_chunk_aes(BYTE *chunk, DWORD chunk_size, 
+void win_enc_chunk_aes(BYTE *chunk, DWORD chunk_size, 
     BYTE *keyBlob, DWORD keySize, BYTE *iv, DWORD ivSize,
     BYTE **ciphertext, DWORD *ciphertextSize) 
 {
@@ -629,7 +629,7 @@ void win_encrypt_chunk_aes(BYTE *chunk, DWORD chunk_size,
     if (keyObject) free(keyObject);
 }
 
-void win_encrypt_file_aes(char *key_path, char *file_path, 
+void win_enc_file_aes(char *key_path, char *file_path, 
     char *chaining, char *iv_path, char *output_path) 
 {
     FILE *keyFile = fopen(key_path, "rb");
@@ -655,23 +655,34 @@ void win_encrypt_file_aes(char *key_path, char *file_path,
     fread(iv, 1, ivSize, ivFile);
     fclose(ivFile);
 
-    BYTE chunk[CHUNK_SIZE];
+    fseek(inputFile, 0, SEEK_END);
+    DWORD inputSize = ftell(inputFile);
+    fseek(inputFile, 0, SEEK_SET);
+
+    DWORD chunk_size = CHUNK_SIZE;
+    if (inputSize < chunk_size) {
+        chunk_size = inputSize;
+    }
+
+    BYTE *chunk = ALLOC(BYTE, chunk_size);
+
     size_t bytesRead;
-    while ((bytesRead = fread(chunk, 1, CHUNK_SIZE, inputFile)) > 0) {
+    while ((bytesRead = fread(chunk, 1, chunk_size, inputFile)) > 0) {
         BYTE *ciphertext = NULL;
         DWORD ciphertextSize = 0;
-        win_encrypt_chunk_aes(chunk, bytesRead, keyBlob, keySize, iv, ivSize, &ciphertext, &ciphertextSize);
+        win_enc_chunk_aes(chunk, bytesRead, keyBlob, keySize, iv, ivSize, &ciphertext, &ciphertextSize);
         fwrite(ciphertext, 1, ciphertextSize, outputFile);
         free(ciphertext);
     }
 
     fclose(inputFile);
     fclose(outputFile);
-    free(keyBlob);
-    free(iv);
+    FREE(keyBlob);
+    FREE(iv);
+    FREE(chunk);
 }
 
-void win_decrypt_chunk_aes(BYTE *chunk, DWORD chunk_size, 
+void win_dec_chunk_aes(BYTE *chunk, DWORD chunk_size, 
     BYTE *keyBlob, DWORD keySize, BYTE *iv, DWORD ivSize,
     BYTE **plaintext, DWORD *plaintextSize) 
 {
@@ -681,6 +692,8 @@ void win_decrypt_chunk_aes(BYTE *chunk, DWORD chunk_size,
     DWORD resultLength = 0;
     BYTE *keyObject = NULL;
     DWORD keyObjectSize = 0;
+
+    printf("iv_size: %d\n", ivSize);
 
     // Open an algorithm handle
     status = BCryptOpenAlgorithmProvider(&hAlgorithm, BCRYPT_AES_ALGORITHM, NULL, 0);
@@ -699,6 +712,7 @@ void win_decrypt_chunk_aes(BYTE *chunk, DWORD chunk_size,
     MASSERT(NT_SUCCESS(status), "BCryptGenerateSymmetricKey failed");
 
     // Calculate the buffer size for the plaintext
+    // printf("hKey: %p, chunk: %p, chunk_size: %d, iv: %p, ivSize: %d, plaintextSize: %d\n", hKey, chunk, chunk_size, iv, ivSize, *plaintextSize);
     status = BCryptDecrypt(hKey, chunk, chunk_size, NULL, iv, ivSize, NULL, 0, plaintextSize, BCRYPT_BLOCK_PADDING);
     MASSERT(NT_SUCCESS(status), "BCryptDecrypt failed");
 
@@ -707,7 +721,9 @@ void win_decrypt_chunk_aes(BYTE *chunk, DWORD chunk_size,
     MASSERT(*plaintext != NULL, "HeapAlloc failed");
 
     // Perform the decryption
+    printf("hKey: %p, chunk: %p, chunk_size: %d, iv: %p, ivSize: %d, plaintextSize: %d\n", hKey, chunk, chunk_size, iv, ivSize, *plaintextSize);
     status = BCryptDecrypt(hKey, chunk, chunk_size, NULL, iv, ivSize, *plaintext, *plaintextSize, &resultLength, BCRYPT_BLOCK_PADDING);
+    printf("status: %ld\n", status);
     MASSERT(NT_SUCCESS(status), "BCryptDecrypt failed");
 
     // Clean up
@@ -716,7 +732,7 @@ void win_decrypt_chunk_aes(BYTE *chunk, DWORD chunk_size,
     if (keyObject) free(keyObject);
 }
 
-void win_decrypt_file_aes(char *key_path, char *file_path, 
+void win_dec_file_aes(char *key_path, char *file_path, 
     char *chaining, char *iv_path, char *output_path) 
 {
     FILE *keyFile = fopen(key_path, "rb");
@@ -737,25 +753,38 @@ void win_decrypt_file_aes(char *key_path, char *file_path,
 
     fseek(ivFile, 0, SEEK_END);
     DWORD ivSize = ftell(ivFile);
+    printf("ivSize: %d\n", ivSize);
     fseek(ivFile, 0, SEEK_SET);
     BYTE *iv = ALLOC(BYTE, ivSize);
     fread(iv, 1, ivSize, ivFile);
     fclose(ivFile);
 
-    BYTE chunk[CHUNK_SIZE];
+    fseek(inputFile, 0, SEEK_END);
+    DWORD inputSize = ftell(inputFile);
+    fseek(inputFile, 0, SEEK_SET);
+
+    DWORD chunk_size = CHUNK_SIZE;
+    if (inputSize < chunk_size) {
+        chunk_size = inputSize;
+    }
+
+    BYTE *chunk = ALLOC(BYTE, chunk_size);
+
     size_t bytesRead;
-    while ((bytesRead = fread(chunk, 1, CHUNK_SIZE, inputFile)) > 0) {
+    while ((bytesRead = fread(chunk, 1, chunk_size, inputFile)) > 0) {
         BYTE *plaintext = NULL;
         DWORD plaintextSize = 0;
-        win_decrypt_chunk_aes(chunk, bytesRead, keyBlob, keySize, iv, ivSize, &plaintext, &plaintextSize);
+        win_dec_chunk_aes(chunk, bytesRead, keyBlob, keySize, iv, ivSize, &plaintext, &plaintextSize);
+        printf("plaintextSize: %d\n", plaintextSize);
         fwrite(plaintext, 1, plaintextSize, outputFile);
         free(plaintext);
     }
 
     fclose(inputFile);
     fclose(outputFile);
-    free(keyBlob);
-    free(iv);
+    FREE(keyBlob);
+    FREE(iv);
+    FREE(chunk);
 }
 
 #endif // _WIN32
@@ -841,7 +870,9 @@ int main(int argc, const char *argv[]) {
     argparse_describe(&argparse, argparse_top_msg, argparse_bottom_msg);
     argc = argparse_parse(&argparse, argc, argv);
 
-    iv_path = key_path;
+    if (mode[0] == 'k'){
+        iv_path = key_path;
+    }
 
     switch (mode[0])
     {
@@ -925,7 +956,7 @@ int main(int argc, const char *argv[]) {
 #ifdef _LINUX
 #endif // _LINUX
 #ifdef _WIN32
-        win_encrypt_file_aes(key_path, file_path, chaining, iv_path, output_path);
+        win_enc_file_aes(key_path, file_path, chaining, iv_path, output_path);
 #endif // _WIN32
         break;
     case 'd':
@@ -963,6 +994,7 @@ int main(int argc, const char *argv[]) {
 #ifdef _LINUX
 #endif // _LINUX
 #ifdef _WIN32
+        win_dec_file_aes(key_path, file_path, chaining, iv_path, output_path);
 #endif // _WIN32
         break;
     default:
