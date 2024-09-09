@@ -274,7 +274,7 @@ size_t file_size(const char *file_name)
 void print_byte_array_hex(uint8_t *array, size_t size) {
     printf("0x");
     for (size_t i = 0; i < size; i++) {
-        printf("%02X", array[i]);
+        printf("%02X", (uint8_t)array[i]);
     }
     printf("\n");
 }
@@ -524,8 +524,8 @@ void win_read_aes_key(char *key_path, BYTE **keyBlob, DWORD *keySize) {
         fseek(keyFile, 0, SEEK_SET);
         // keyBlob = (BYTE *)HeapAlloc(GetProcessHeap(), 0, keySize);
         *keyBlob = ALLOC(BYTE, (size_t)*keySize);
-        if (keyBlob) {
-            fread(keyBlob, 1, (size_t)*keySize, keyFile);
+        if (*keyBlob) {
+            fread(*keyBlob, 1, (size_t)*keySize, keyFile);
             fclose(keyFile);
             printf("AES key read from file\n");
         } else {
@@ -677,6 +677,7 @@ void win_enc_file_aes(char *key_path, char *file_path,
 
     fclose(inputFile);
     fclose(outputFile);
+    printf("File %s encrypted and saved to %s\n", file_path, output_path);
     FREE(keyBlob);
     FREE(iv);
     FREE(chunk);
@@ -782,6 +783,7 @@ void win_dec_file_aes(char *key_path, char *file_path,
 
     fclose(inputFile);
     fclose(outputFile);
+    printf("File %s decrypted and saved to %s\n", file_path, output_path);
     FREE(keyBlob);
     FREE(iv);
     FREE(chunk);
@@ -870,7 +872,7 @@ int main(int argc, const char *argv[]) {
     argparse_describe(&argparse, argparse_top_msg, argparse_bottom_msg);
     argc = argparse_parse(&argparse, argc, argv);
 
-    if (mode[0] == 'k'){
+    if (mode[0] == 'i'){
         iv_path = key_path;
     }
 
@@ -893,8 +895,11 @@ int main(int argc, const char *argv[]) {
         BYTE *keyBlob = NULL;
         DWORD keySize = 0;
         win_read_aes_key(key_path, &keyBlob, &keySize);
+        printf("keyBlob: %p\n", keyBlob);
+        printf("keySize: %d\n", keySize);
         printf("Key: ");
         print_byte_array_hex(keyBlob, keySize);
+        FREE(keyBlob);
 
         if (keyBlob) HeapFree(GetProcessHeap(), 0, keyBlob);
 #endif // _WIN32
@@ -917,6 +922,7 @@ int main(int argc, const char *argv[]) {
         win_read_aes_iv(iv_path, &ivBlob, &ivSize);
         printf("IV: ");
         print_byte_array_hex(ivBlob, ivSize);
+        FREE(ivBlob);
 
         if (ivBlob) HeapFree(GetProcessHeap(), 0, ivBlob);
 #endif // _WIN32
