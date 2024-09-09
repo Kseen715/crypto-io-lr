@@ -1,1 +1,1 @@
-make build && .\build\cifs.exe -m enc -k .\temp\key.bin -i .\temp\iv.bin -f .\test\kokkoro-astrum.png -c no -o .\temp\demo.enc
+.\build\cifs.exe -m enc -k .\temp\key.bin -i .\temp\iv.bin -f .\test\kokkoro-astrum.png -c no -o .\temp\demo.enc
