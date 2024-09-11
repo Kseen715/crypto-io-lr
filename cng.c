@@ -102,12 +102,12 @@
 /// @param pbar [in] name of the progress bar
 /// @param i [in] current iteration
 /// @param numIterations [in] total number of iterations
-#define UPDATE_PROGRESS_BAR(pbar, i, numIterations) \
-    PROGRESS_BAR_RUNING(pbar, (float)(i + 1) / numIterations * 100, \
-        " (%d/%d)", i + 1, numIterations); \
-    if (numIterations == i + 1) { \
-        printf("\n"); \
-    } \
+#define UPDATE_PROGRESS_BAR(pbar, i, numIterations)                     \
+    PROGRESS_BAR_RUNING(pbar, (float)(i + 1) / numIterations * 100,     \
+        " (%lld/%lld)", (long long)(i + 1), (long long)numIterations);  \
+    if (numIterations == i + 1) {                                       \
+        printf("\n");                                                   \
+    }                                                                   \
 
 // int main(int argc, char *argv[])
 // {
@@ -470,7 +470,7 @@ uint8_t* kpp_keygen(const char *ciphername)
 #define AES_KEY_BYTE_SIZE 16 // 128 bits
 #define AES_KEY_BIT_SIZE AES_KEY_BYTE_SIZE * 8
 // #define CHUNK_SIZE 1024 * 1024 * 1024 // 1024 MB
-#define CHUNK_SIZE 1024
+#define CHUNK_SIZE 1024 * 1024 // 1 MB
 
 /// @brief Generate AES key and save it to a file
 /// @param key_path [in] path to the key file
@@ -613,14 +613,10 @@ void win_read_aes_iv(char *iv_path, BYTE **ivBlob, DWORD *ivSize) {
     printf("IV read from file \"%s\"\n", iv_path);
 }
 
-        // [in] путь к файлу ключа
-        // [in] путь к файлу для шифрования
-        // [in] режим сцепления блоков
-        // [out] путь к инициализирующему вектору
-        // [out] путь к зашифрованному файлу
+
 void win_enc_chunk_aes(BYTE *chunk, DWORD chunk_size, 
-    BCRYPT_ALG_HANDLE hAlgorithm, BCRYPT_KEY_HANDLE hKey, BYTE *iv, DWORD ivSize,
-    BYTE **ciphertext, DWORD *ciphertextSize) 
+    BCRYPT_ALG_HANDLE hAlgorithm, BCRYPT_KEY_HANDLE hKey, 
+    BYTE *iv, DWORD ivSize, BYTE **ciphertext, DWORD *ciphertextSize) 
 {
     NTSTATUS status;
     DWORD resultLength = 0;
@@ -629,16 +625,69 @@ void win_enc_chunk_aes(BYTE *chunk, DWORD chunk_size,
     status = BCryptEncrypt(hKey, chunk, chunk_size, NULL, iv, ivSize, NULL, 0, ciphertextSize, BCRYPT_BLOCK_PADDING);
     MASSERT(NT_SUCCESS(status), "BCryptEncrypt failed");
 
+#ifdef _DEBUG
+    printf("chunk_size: %lu\n", chunk_size);
+    printf("ciphertextSize: %lu\n", *ciphertextSize);
+#endif // _DEBUG
+
     // Allocate the ciphertext buffer
     *ciphertext = ALLOC(BYTE, *ciphertextSize);
     MASSERT(*ciphertext != NULL, "HeapAlloc failed");
 
     // Perform the encryption
     status = BCryptEncrypt(hKey, chunk, chunk_size, NULL, iv, ivSize, *ciphertext, *ciphertextSize, &resultLength, BCRYPT_BLOCK_PADDING);    
+    // ciphertext[*ciphertextSize] = '\0';
+    *ciphertextSize = resultLength;
 #ifdef _DEBUG
     printf("status: %ld\n", status);
 #endif // _DEBUG
     MASSERT(NT_SUCCESS(status), "BCryptEncrypt failed");
+}
+
+/// @brief Decrypt chunk using AES
+/// @param chunk [in]
+/// @param chunk_size [in] size of the chunk 
+/// @param hAlgorithm [in] algorithm handle
+/// @param hKey [in] key handle
+/// @param iv [in] initialization vector
+/// @param ivSize [in] size of the initialization vector
+/// @param plaintext [out] pointer to the plaintext
+/// @param plaintextSize [out] pointer to the plaintext size
+void win_dec_chunk_aes(BYTE *chunk, DWORD chunk_size, 
+    BCRYPT_ALG_HANDLE hAlgorithm, BCRYPT_KEY_HANDLE hKey, 
+    BYTE *iv, DWORD ivSize, BYTE **plaintext, DWORD *plaintextSize) 
+{
+    NTSTATUS status;
+    DWORD resultLength = 0;
+
+    // Calculate the buffer size for the plaintext
+    status = BCryptDecrypt(hKey, chunk, chunk_size, NULL, iv, ivSize, NULL, 0, plaintextSize, BCRYPT_BLOCK_PADDING);
+    MASSERT(NT_SUCCESS(status), "BCryptDecrypt failed");
+
+    // Allocate the plaintext buffer
+    *plaintext = ALLOC(BYTE, *plaintextSize);
+    MASSERT(*plaintext != NULL, "HeapAlloc failed");
+
+    // Perform the decryption
+#ifdef _DEBUG
+    printf("chunk_size: %lu\n", chunk_size);
+    printf("ivSize: %lu\n", ivSize);
+    printf("plaintextSize: %lu\n", *plaintextSize);
+#endif // _DEBUG
+    status = BCryptDecrypt(hKey, chunk, chunk_size, NULL, iv, ivSize, *plaintext, *plaintextSize, &resultLength, BCRYPT_BLOCK_PADDING);
+    // plaintext[*plaintextSize] = '\0';
+    *plaintextSize = resultLength;
+#ifdef _DEBUG
+    printf("status: %ld\n", status);
+    printf("resultLength: %lu\n", resultLength);
+    printf("hKey: %p\n", hKey);
+    printf("iv: ");
+    for (DWORD i = 0; i < ivSize; i++) {
+        printf("%02x", iv[i]);
+    }
+    printf("\n");
+#endif // _DEBUG
+    MASSERT(NT_SUCCESS(status), "BCryptDecrypt failed");
 }
 
 void win_enc_file_aes(char *key_path, char *file_path, 
@@ -730,39 +779,25 @@ void win_enc_file_aes(char *key_path, char *file_path,
         FREE(ciphertext);
     }
 
+    printf("File %s encrypted and saved to %s\n", file_path, output_path);
     // Clean up
     if (hKey) BCryptDestroyKey(hKey);
     if (hAlgorithm) BCryptCloseAlgorithmProvider(hAlgorithm, 0);
-    if (keyObject) free(keyObject);
-
     fclose(inputFile);
     fclose(outputFile);
-    printf("File %s encrypted and saved to %s\n", file_path, output_path);
+    FREE(keyObject);
     FREE(keyBlob);
     FREE(iv);
     FREE(chunk);
 }
 
-void win_dec_chunk_aes(BYTE *chunk, DWORD chunk_size, 
-    BCRYPT_ALG_HANDLE hAlgorithm, BCRYPT_KEY_HANDLE hKey, 
-    BYTE *iv, DWORD ivSize, BYTE **plaintext, DWORD *plaintextSize) 
-{
-    NTSTATUS status;
-    DWORD resultLength = 0;
-
-    // Calculate the buffer size for the plaintext
-    status = BCryptDecrypt(hKey, chunk, chunk_size, NULL, iv, ivSize, NULL, 0, plaintextSize, BCRYPT_BLOCK_PADDING);
-    MASSERT(NT_SUCCESS(status), "BCryptDecrypt failed");
-
-    // Allocate the plaintext buffer
-    *plaintext = ALLOC(BYTE, *plaintextSize);
-    MASSERT(*plaintext != NULL, "HeapAlloc failed");
-
-    // Perform the decryption
-    status = BCryptDecrypt(hKey, chunk, chunk_size, NULL, iv, ivSize, *plaintext, *plaintextSize, &resultLength, BCRYPT_BLOCK_PADDING);
-    MASSERT(NT_SUCCESS(status), "BCryptDecrypt failed");
-}
-
+/// @brief Decrypt file using AES
+/// @param key_path [in] path to the key file
+/// @param file_path [in] path to the file for decryption
+/// @param chaining [in] chaining mode
+/// @param iv_path [in] path to the initialization vector
+/// @param output_path [in] path to the decrypted file
+/// @param chainingMode [in] chaining mode
 void win_dec_file_aes(char *key_path, char *file_path, 
     char *chaining, char *iv_path, char *output_path, wchar_t* chainingMode) 
 {
@@ -797,6 +832,11 @@ void win_dec_file_aes(char *key_path, char *file_path,
     if (inputSize < chunk_size) {
         chunk_size = inputSize;
     }
+    // if CBC, then chunk_size must be multiple of AES block size plus additional bytes (d + 16) & ~15
+    if (wcscmp(chainingMode, BCRYPT_CHAIN_MODE_CBC) == 0) {
+        chunk_size = (chunk_size + AES_KEY_BYTE_SIZE) & ~15;
+    }
+
 
     BYTE *chunk = ALLOC(BYTE, chunk_size);
 
@@ -827,22 +867,32 @@ void win_dec_file_aes(char *key_path, char *file_path,
     status = BCryptGenerateSymmetricKey(hAlgorithm, &hKey, keyObject, keyObjectSize, keyBlob, keySize, 0);
     MASSERT(NT_SUCCESS(status), "BCryptGenerateSymmetricKey failed");
 
-    size_t bytesRead;
-    while ((bytesRead = fread(chunk, 1, chunk_size, inputFile)) > 0) {
+    fseek(inputFile, 0, SEEK_END);
+    size_t fileSize = ftell(inputFile);
+    fseek(inputFile, 0, SEEK_SET);
+
+    size_t numIterations = (fileSize + chunk_size - 1) / chunk_size; // Calculate the number of chunks
+    START_PROGRESS_BAR(pbar, 32);
+    for (size_t i = 0; i < numIterations; i++) {
+        size_t bytesRead = fread(chunk, 1, chunk_size, inputFile);
         BYTE *plaintext = NULL;
         DWORD plaintextSize = 0;
         win_dec_chunk_aes(chunk, bytesRead, hAlgorithm, hKey, iv, ivSize, &plaintext, &plaintextSize);
+#ifdef _DEBUG
+        printf("written: %lu  bytes\n", plaintextSize);
+#endif // _DEBUG
         fwrite(plaintext, 1, plaintextSize, outputFile);
-        free(plaintext);
+        UPDATE_PROGRESS_BAR(pbar, i, numIterations);
+        FREE(plaintext);
     }
 
+    printf("File %s decrypted and saved to %s\n", file_path, output_path); 
     // Clean up
     if (hKey) BCryptDestroyKey(hKey);
     if (hAlgorithm) BCryptCloseAlgorithmProvider(hAlgorithm, 0);
-    if (keyObject) free(keyObject);
-
     fclose(inputFile);
     fclose(outputFile);
+    FREE(keyObject);
     FREE(keyBlob);
     FREE(iv);
     FREE(chunk);

@@ -1,0 +1,1 @@
+.\build\cifs.exe -m dec -k .\temp\key.bin -i .\temp\iv.bin -f .\temp\demo-mp4.enc -c no -o .\temp\demo-mp4-dec.mp4
