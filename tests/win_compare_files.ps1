@@ -13,8 +13,9 @@ If ($hashSrc.Hash -ne $hashDest.Hash)
     for ($i = 0; $i -lt $hashSrcBytes.Length; $i++) {
         $diffBytes += $hashSrcBytes[$i] - $hashDestBytes[$i]
     }
-  $hexDiff = ($diffBytes | ForEach-Object { "{0:X2}" -f $_ }) -join ""
-  Write-Output "<] The files are NOT EQUAL. The difference is: $hexDiff"
+  $hexDiff = ($diffBytes | ForEach-Object { "{0:X2}" -f [math]::Abs($_) }) -join ""
+  Write-Output "<] The files are NOT EQUAL. The difference is: SHA256:0x$hexDiff"
+  exit 1
 }
 Else 
 {

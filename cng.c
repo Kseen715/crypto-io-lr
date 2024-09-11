@@ -57,6 +57,10 @@
     C_RED
 
 // Main assert, in a 'slay💅' style
+
+/// @brief Assert a condition
+/// @param cond [in] condition to assert
+/// @param msg [in] message to print if the condition is false
 #define MASSERT(cond, msg)                                              \
     if (!(cond))                                                        \
     {                                                                   \
@@ -68,9 +72,27 @@
     }
 
 // Preferrable allocators
+
+/// @brief Allocate memory for an array of type T
+/// @param T [in] type of the array
+/// @param size [in] size of the array
+/// @return pointer to the allocated memory
 #define ALLOC(T, size) ((T *)malloc((size) * sizeof(T)))
+
+/// @brief Allocate memory for an array of type T and set it to zero
+/// @param T [in] type of the array
+/// @param size [in] size of the array
+/// @return pointer to the allocated memory
 #define CALLOC(T, size) ((T *)calloc((size), sizeof(T)))
+
+/// @brief Reallocate memory for an array of type T
+/// @param T [in] type of the array
+/// @param ptr [in] pointer to the array
+/// @param size [in] size of the array
 #define REALLOC(T, ptr, size) ((T *)realloc(ptr, (size) * sizeof(T)))
+
+/// @brief Free memory
+/// @param ptr [in] pointer to the memory
 #define FREE(ptr)    \
     if (ptr != NULL) \
     {                \
@@ -184,7 +206,7 @@ void fread_bin(uint8_t **bytes, size_t *size, const char *file_name)
 }
 
 /// @brief Print byte as binary number
-/// @param byte
+/// @param byte [in] byte to print
 void print_byte_bin(uint8_t byte)
 {
     int i;
@@ -204,11 +226,12 @@ void print_byte_bin(uint8_t byte)
 
 /// @brief Convert array of integers to a null-terminated
 /// string of ASCII characters
-/// @param data array of integers
-/// @param data_size
-/// @param str pointer to the result
+/// @param data [in] array of integers
+/// @param data_size [in] array size
+/// @param str [in] pointer to the result
 /// @warning The result must be freed after usage
-void convert_array_to_str(unsigned long long int *data, size_t data_size, char **str)
+void convert_array_to_str(unsigned long long int *data, size_t data_size, 
+                          char **str)
 {
     char *res = CALLOC(char, data_size);
     MASSERT(res != NULL, "Memory allocation failed");
@@ -309,6 +332,29 @@ void print_byte_array_hex(uint8_t *array, size_t size) {
     printf("\n");
 }
 
+/// @brief Lowercase string
+/// @param str [in/out] string to convert
+void str_lower(char *str) {
+    for (int i = 0; str[i]; i++) {
+        str[i] = tolower(str[i]);
+    }
+}
+
+/// @brief Lowercase wide string
+/// @param str [in/out] string to convert
+void wstr_lower(wchar_t *str) {
+    for (int i = 0; str[i]; i++) {
+        str[i] = towlower(str[i]);
+    }
+}
+
+/// @brief Check if substring is in the string
+/// @param str [in] string
+/// @param substr [in] substring
+/// @return true if substring is in the string
+bool is_in_str(const char *str, const char *substr) {
+    return strstr(str, substr) != NULL;
+}
 
 #ifdef _LINUX
 int test_sym_aes(){
@@ -568,6 +614,8 @@ void win_read_aes_key(char *key_path, BYTE **keyBlob, DWORD *keySize) {
     }
 }
 
+/// @brief Generate AES initialization vector and save it to a file
+/// @param iv_path [in] path to the IV file
 void win_generate_aes_iv(char *iv_path) {
     BCRYPT_ALG_HANDLE hAlgorithm = NULL;
     NTSTATUS status;
@@ -596,6 +644,10 @@ void win_generate_aes_iv(char *iv_path) {
     if (hAlgorithm) BCryptCloseAlgorithmProvider(hAlgorithm, 0);
 }
 
+/// @brief Read AES initialization vector from file
+/// @param iv_path [in] path to the IV file
+/// @param ivBlob [out] pointer to the IV
+/// @param ivSize [out] pointer to the IV size
 void win_read_aes_iv(char *iv_path, BYTE **ivBlob, DWORD *ivSize) {
     FILE *ivFile = fopen(iv_path, "rb");
     MASSERT(ivFile != NULL, "Failed to open IV file");
@@ -613,21 +665,30 @@ void win_read_aes_iv(char *iv_path, BYTE **ivBlob, DWORD *ivSize) {
     printf("IV read from file \"%s\"\n", iv_path);
 }
 
-
+/// @brief Encrypt chunk using AES
+/// @param chunk [in]
+/// @param chunk_size [in] size of the chunk
+/// @param hAlgorithm [in] algorithm handle
+/// @param hKey [in] key handle
+/// @param iv [in] initialization vector
+/// @param ivSize [in] size of the initialization vector
+/// @param ciphertext [out] pointer to the ciphertext
+/// @param ciphertextSize [out] pointer to the ciphertext size
 void win_enc_chunk_aes(BYTE *chunk, DWORD chunk_size, 
-    BCRYPT_ALG_HANDLE hAlgorithm, BCRYPT_KEY_HANDLE hKey, 
-    BYTE *iv, DWORD ivSize, BYTE **ciphertext, DWORD *ciphertextSize) 
+                       BCRYPT_ALG_HANDLE hAlgorithm, BCRYPT_KEY_HANDLE hKey, 
+                       BYTE *iv, DWORD ivSize, 
+                       BYTE **ciphertext, DWORD *ciphertextSize) 
 {
     NTSTATUS status;
     DWORD resultLength = 0;
 
     // Calculate the buffer size for the ciphertext
-    status = BCryptEncrypt(hKey, chunk, chunk_size, NULL, iv, ivSize, NULL, 0, ciphertextSize, BCRYPT_BLOCK_PADDING);
+    status = BCryptEncrypt(hKey, chunk, chunk_size, NULL, iv, ivSize, NULL, 0, 
+                           ciphertextSize, BCRYPT_BLOCK_PADDING);
     MASSERT(NT_SUCCESS(status), "BCryptEncrypt failed");
 
 #ifdef _DEBUG
     printf("chunk_size: %lu\n", chunk_size);
-    printf("ciphertextSize: %lu\n", *ciphertextSize);
 #endif // _DEBUG
 
     // Allocate the ciphertext buffer
@@ -635,11 +696,28 @@ void win_enc_chunk_aes(BYTE *chunk, DWORD chunk_size,
     MASSERT(*ciphertext != NULL, "HeapAlloc failed");
 
     // Perform the encryption
-    status = BCryptEncrypt(hKey, chunk, chunk_size, NULL, iv, ivSize, *ciphertext, *ciphertextSize, &resultLength, BCRYPT_BLOCK_PADDING);    
-    // ciphertext[*ciphertextSize] = '\0';
-    *ciphertextSize = resultLength;
+    status = BCryptEncrypt(hKey, chunk, chunk_size, NULL, iv, ivSize, 
+                           *ciphertext, *ciphertextSize, &resultLength, 
+                           BCRYPT_BLOCK_PADDING);    
+
+    // get chaining mode
+    wchar_t chainingMode[64]; // Buffer to hold the chaining mode
+    DWORD chainingModeSize = sizeof(chainingMode);
+    ULONG result = 0;
+    status = BCryptGetProperty(hAlgorithm, BCRYPT_CHAINING_MODE, 
+                               (PBYTE)chainingMode, chainingModeSize, 
+                               &result, 0);
+    MASSERT(NT_SUCCESS(status), "BCryptGetProperty failed");
+
+    // if (wcscmp(chainingMode, (wchar_t *)BCRYPT_CHAIN_MODE_ECB) == 0) {
+    //     *ciphertextSize = chunk_size;
+    // } else {
+    //     *ciphertextSize = resultLength;
+    // }
 #ifdef _DEBUG
     printf("status: %ld\n", status);
+    printf("cipherTextSize: %lu\n", *ciphertextSize);
+    printf("resultLength: %lu\n", resultLength);
 #endif // _DEBUG
     MASSERT(NT_SUCCESS(status), "BCryptEncrypt failed");
 }
@@ -654,15 +732,18 @@ void win_enc_chunk_aes(BYTE *chunk, DWORD chunk_size,
 /// @param plaintext [out] pointer to the plaintext
 /// @param plaintextSize [out] pointer to the plaintext size
 void win_dec_chunk_aes(BYTE *chunk, DWORD chunk_size, 
-    BCRYPT_ALG_HANDLE hAlgorithm, BCRYPT_KEY_HANDLE hKey, 
-    BYTE *iv, DWORD ivSize, BYTE **plaintext, DWORD *plaintextSize) 
+                       BCRYPT_ALG_HANDLE hAlgorithm, BCRYPT_KEY_HANDLE hKey, 
+                       BYTE *iv, DWORD ivSize, 
+                       BYTE **plaintext, DWORD *plaintextSize, bool isLastChunk) 
 {
     NTSTATUS status;
     DWORD resultLength = 0;
 
     // Calculate the buffer size for the plaintext
-    status = BCryptDecrypt(hKey, chunk, chunk_size, NULL, iv, ivSize, NULL, 0, plaintextSize, BCRYPT_BLOCK_PADDING);
+    status = BCryptDecrypt(hKey, chunk, chunk_size, NULL, iv, ivSize, NULL, 0, 
+                           plaintextSize, BCRYPT_BLOCK_PADDING);
     MASSERT(NT_SUCCESS(status), "BCryptDecrypt failed");
+
 
     // Allocate the plaintext buffer
     *plaintext = ALLOC(BYTE, *plaintextSize);
@@ -674,12 +755,32 @@ void win_dec_chunk_aes(BYTE *chunk, DWORD chunk_size,
     printf("ivSize: %lu\n", ivSize);
     printf("plaintextSize: %lu\n", *plaintextSize);
 #endif // _DEBUG
-    status = BCryptDecrypt(hKey, chunk, chunk_size, NULL, iv, ivSize, *plaintext, *plaintextSize, &resultLength, BCRYPT_BLOCK_PADDING);
-    // plaintext[*plaintextSize] = '\0';
-    *plaintextSize = resultLength;
+    status = BCryptDecrypt(hKey, chunk, chunk_size, NULL, iv, ivSize, 
+                           *plaintext, *plaintextSize, &resultLength, 
+                           BCRYPT_BLOCK_PADDING);
+    MASSERT(NT_SUCCESS(status), "BCryptDecrypt failed");
+                        
+    // get chaining mode
+    wchar_t chainingMode[64]; // Buffer to hold the chaining mode
+    DWORD chainingModeSize = sizeof(chainingMode);
+    ULONG result = 0;
+    status = BCryptGetProperty(hAlgorithm, BCRYPT_CHAINING_MODE, 
+                               (PBYTE)chainingMode, chainingModeSize, 
+                               &result, 0);
+    MASSERT(NT_SUCCESS(status), "BCryptGetProperty failed");
+
+        *plaintextSize = resultLength;
+    if (wcscmp(chainingMode, (wchar_t *)BCRYPT_CHAIN_MODE_ECB) != 0) {
+    }
+    // *plaintextSize = resultLength;
+    if (isLastChunk) {
+        *plaintextSize = resultLength;
+    }
 #ifdef _DEBUG
+    if (isLastChunk) printf("isLastChunk: %d\n", isLastChunk);
     printf("status: %ld\n", status);
     printf("resultLength: %lu\n", resultLength);
+    printf("plaintextSize: %lu\n", *plaintextSize);
     printf("hKey: %p\n", hKey);
     printf("iv: ");
     for (DWORD i = 0; i < ivSize; i++) {
@@ -687,20 +788,39 @@ void win_dec_chunk_aes(BYTE *chunk, DWORD chunk_size,
     }
     printf("\n");
 #endif // _DEBUG
-    MASSERT(NT_SUCCESS(status), "BCryptDecrypt failed");
+    // MASSERT(false, "");
 }
 
+/// @brief Encrypt file using AES
+/// @param key_path [in] path to the key file
+/// @param file_path [in] path to the file for encryption
+/// @param chaining [in] chaining mode
+/// @param iv_path [in] path to the initialization vector
+/// @param output_path [in] path to the encrypted file
+/// @param chainingMode [in] chaining mode
 void win_enc_file_aes(char *key_path, char *file_path, 
-    char *chaining, char *iv_path, char *output_path, wchar_t* chainingMode) 
+                      char *chaining, char *iv_path, char *output_path, 
+                      wchar_t* chainingMode) 
 {
     FILE *keyFile = fopen(key_path, "rb");
-    FILE *ivFile = fopen(iv_path, "rb");
     FILE *inputFile = fopen(file_path, "rb");
     FILE *outputFile = fopen(output_path, "wb");
     MASSERT(keyFile != NULL, "Failed to open key file");
-    MASSERT(ivFile != NULL, "Failed to open IV file");
     MASSERT(inputFile != NULL, "Failed to open input file");
     MASSERT(outputFile != NULL, "Failed to open output file");
+
+    DWORD ivSize = 0;
+    BYTE *iv = NULL;
+    if (wcscmp(chainingMode, (wchar_t *)BCRYPT_CHAIN_MODE_ECB) != 0) {
+        FILE *ivFile = fopen(iv_path, "rb");
+        MASSERT(ivFile != NULL, "Failed to open IV file");
+        fseek(ivFile, 0, SEEK_END);
+        ivSize = ftell(ivFile);
+        fseek(ivFile, 0, SEEK_SET);
+        iv = ALLOC(BYTE, ivSize);
+        fread(iv, 1, ivSize, ivFile);
+        fclose(ivFile);
+    }
 
     fseek(keyFile, 0, SEEK_END);
     DWORD keySize = ftell(keyFile);
@@ -708,13 +828,6 @@ void win_enc_file_aes(char *key_path, char *file_path,
     BYTE *keyBlob = ALLOC(BYTE, keySize);
     fread(keyBlob, 1, keySize, keyFile);
     fclose(keyFile);
-
-    fseek(ivFile, 0, SEEK_END);
-    DWORD ivSize = ftell(ivFile);
-    fseek(ivFile, 0, SEEK_SET);
-    BYTE *iv = ALLOC(BYTE, ivSize);
-    fread(iv, 1, ivSize, ivFile);
-    fclose(ivFile);
 
     fseek(inputFile, 0, SEEK_END);
     DWORD inputSize = ftell(inputFile);
@@ -775,6 +888,9 @@ void win_enc_file_aes(char *key_path, char *file_path,
         DWORD ciphertextSize = 0;
         win_enc_chunk_aes(chunk, bytesRead, hAlgorithm, hKey, iv, ivSize, &ciphertext, &ciphertextSize);
         fwrite(ciphertext, 1, ciphertextSize, outputFile);
+#ifdef _DEBUG
+        printf("written: %lu  bytes\n", ciphertextSize);
+#endif // _DEBUG
         UPDATE_PROGRESS_BAR(pbar, i, numIterations);
         FREE(ciphertext);
     }
@@ -799,16 +915,28 @@ void win_enc_file_aes(char *key_path, char *file_path,
 /// @param output_path [in] path to the decrypted file
 /// @param chainingMode [in] chaining mode
 void win_dec_file_aes(char *key_path, char *file_path, 
-    char *chaining, char *iv_path, char *output_path, wchar_t* chainingMode) 
+                      char *chaining, char *iv_path, char *output_path, 
+                      wchar_t* chainingMode) 
 {
     FILE *keyFile = fopen(key_path, "rb");
-    FILE *ivFile = fopen(iv_path, "rb");
     FILE *inputFile = fopen(file_path, "rb");
     FILE *outputFile = fopen(output_path, "wb");
     MASSERT(keyFile != NULL, "Failed to open key file");
-    MASSERT(ivFile != NULL, "Failed to open IV file");
     MASSERT(inputFile != NULL, "Failed to open input file");
     MASSERT(outputFile != NULL, "Failed to open output file");
+
+    DWORD ivSize = 0;
+    BYTE *iv = NULL;
+    if (wcscmp(chainingMode, (wchar_t *)BCRYPT_CHAIN_MODE_ECB) != 0) {
+        FILE *ivFile = fopen(iv_path, "rb");
+        MASSERT(ivFile != NULL, "Failed to open IV file");
+        fseek(ivFile, 0, SEEK_END);
+        ivSize = ftell(ivFile);
+        fseek(ivFile, 0, SEEK_SET);
+        iv = ALLOC(BYTE, ivSize);
+        fread(iv, 1, ivSize, ivFile);
+        fclose(ivFile);
+    }
 
     fseek(keyFile, 0, SEEK_END);
     DWORD keySize = ftell(keyFile);
@@ -816,13 +944,6 @@ void win_dec_file_aes(char *key_path, char *file_path,
     BYTE *keyBlob = ALLOC(BYTE, keySize);
     fread(keyBlob, 1, keySize, keyFile);
     fclose(keyFile);
-
-    fseek(ivFile, 0, SEEK_END);
-    DWORD ivSize = ftell(ivFile);
-    fseek(ivFile, 0, SEEK_SET);
-    BYTE *iv = ALLOC(BYTE, ivSize);
-    fread(iv, 1, ivSize, ivFile);
-    fclose(ivFile);
 
     fseek(inputFile, 0, SEEK_END);
     DWORD inputSize = ftell(inputFile);
@@ -832,11 +953,12 @@ void win_dec_file_aes(char *key_path, char *file_path,
     if (inputSize < chunk_size) {
         chunk_size = inputSize;
     }
-    // if CBC, then chunk_size must be multiple of AES block size plus additional bytes (d + 16) & ~15
-    if (wcscmp(chainingMode, BCRYPT_CHAIN_MODE_CBC) == 0) {
-        chunk_size = (chunk_size + AES_KEY_BYTE_SIZE) & ~15;
-    }
-
+    // chunk_size must be multiple of AES block size plus 
+    // additional bytes (d + 16) & ~15
+    // if (wcscmp(chainingMode, BCRYPT_CHAIN_MODE_CBC) == 0 ||
+        // wcscmp(chainingMode, BCRYPT_CHAIN_MODE_ECB) == 0) {
+    // }
+    chunk_size = (chunk_size + AES_KEY_BYTE_SIZE) & ~15;
 
     BYTE *chunk = ALLOC(BYTE, chunk_size);
 
@@ -848,15 +970,19 @@ void win_dec_file_aes(char *key_path, char *file_path,
     DWORD keyObjectSize = 0;
 
     // Open an algorithm handle
-    status = BCryptOpenAlgorithmProvider(&hAlgorithm, BCRYPT_AES_ALGORITHM, NULL, 0);
+    status = BCryptOpenAlgorithmProvider(&hAlgorithm, BCRYPT_AES_ALGORITHM, 
+                                         NULL, 0);
     MASSERT(NT_SUCCESS(status), "BCryptOpenAlgorithmProvider failed");
 
     // Set the chaining mode
-    status = BCryptSetProperty(hAlgorithm, BCRYPT_CHAINING_MODE, (PBYTE)chainingMode, wcslen(chainingMode), 0);
+    status = BCryptSetProperty(hAlgorithm, BCRYPT_CHAINING_MODE, 
+                               (PBYTE)chainingMode, wcslen(chainingMode), 0);
     MASSERT(NT_SUCCESS(status), "BCryptSetProperty failed");
 
     // Calculate the size of the buffer to hold the KeyObject
-    status = BCryptGetProperty(hAlgorithm, BCRYPT_OBJECT_LENGTH, (PBYTE)&keyObjectSize, sizeof(DWORD), &resultLength, 0);
+    status = BCryptGetProperty(hAlgorithm, BCRYPT_OBJECT_LENGTH, 
+                               (PBYTE)&keyObjectSize, sizeof(DWORD), 
+                               &resultLength, 0);
     MASSERT(NT_SUCCESS(status), "BCryptGetProperty failed");
 
     // Allocate the key object
@@ -864,20 +990,23 @@ void win_dec_file_aes(char *key_path, char *file_path,
     MASSERT(keyObject != NULL, "HeapAlloc failed");
 
     // Generate the key from the keyBlob
-    status = BCryptGenerateSymmetricKey(hAlgorithm, &hKey, keyObject, keyObjectSize, keyBlob, keySize, 0);
+    status = BCryptGenerateSymmetricKey(hAlgorithm, &hKey, keyObject, 
+                                        keyObjectSize, keyBlob, keySize, 0);
     MASSERT(NT_SUCCESS(status), "BCryptGenerateSymmetricKey failed");
 
     fseek(inputFile, 0, SEEK_END);
     size_t fileSize = ftell(inputFile);
     fseek(inputFile, 0, SEEK_SET);
 
-    size_t numIterations = (fileSize + chunk_size - 1) / chunk_size; // Calculate the number of chunks
+    // Calculate the number of chunks
+    size_t numIterations = (fileSize + chunk_size - 1) / chunk_size; 
     START_PROGRESS_BAR(pbar, 32);
     for (size_t i = 0; i < numIterations; i++) {
         size_t bytesRead = fread(chunk, 1, chunk_size, inputFile);
         BYTE *plaintext = NULL;
         DWORD plaintextSize = 0;
-        win_dec_chunk_aes(chunk, bytesRead, hAlgorithm, hKey, iv, ivSize, &plaintext, &plaintextSize);
+        win_dec_chunk_aes(chunk, bytesRead, hAlgorithm, hKey, iv, ivSize, 
+                          &plaintext, &plaintextSize, i == numIterations - 1);
 #ifdef _DEBUG
         printf("written: %lu  bytes\n", plaintextSize);
 #endif // _DEBUG
@@ -917,20 +1046,22 @@ int main(int argc, const char *argv[]) {
 
     struct argparse_option options[] = {
         OPT_HELP(),
-        OPT_STRING('m', "mode", &mode,
-            "mode of operation, can be 'keygen', 'ivgen', 'enc' or 'dec'", NULL, 0, 0),
+        OPT_STRING('m', "mode", &mode,                          \
+                   "mode of operation, "                        \
+                   "can be 'keygen', 'ivgen', 'enc' or 'dec'",  \
+                   NULL, 0, 0),                                 \
 
         // для генерации ключа:
         // [out] путь к файлу ключа
         OPT_GROUP(C_HEADER "Key generation" C_RESET " "),
         OPT_STRING('g', "gen-key", &key_path,
-            "path to key file", NULL, 0, 0),
+                   "path to key file", NULL, 0, 0),
 
         // для генерации инициализирующего вектора:
         // [out] путь к файлу инициализирующего вектора
         OPT_GROUP(C_HEADER "IV generation" C_RESET " "),
         OPT_STRING('g', "gen-key", NULL,
-            "path to initialization vector", NULL, 0, 0),
+                   "path to initialization vector", NULL, 0, 0),
 
         // для шифрования:
         // [in] путь к файлу ключа
@@ -940,15 +1071,15 @@ int main(int argc, const char *argv[]) {
         // [out] путь к зашифрованному файлу
         OPT_GROUP(C_HEADER "Encryption" C_RESET " "),
         OPT_STRING('k', "key", &key_path, 
-            "path to key file", NULL, 0, 0),
+                   "path to key file", NULL, 0, 0),
         OPT_STRING('i', "iv", &iv_path,
-            "path to initialization vector", NULL, 0, 0),
+                   "path to initialization vector", NULL, 0, 0),
         OPT_STRING('f', "file", &file_path,
-            "path to file for encryption", NULL, 0, 0),
+                   "path to file for encryption", NULL, 0, 0),
         OPT_STRING('c', "chaining", &chaining,
-            "block chaining mode", NULL, 0, 0),
+                   "block chaining mode, can be CBC, CFB, ECB", NULL, 0, 0),
         OPT_STRING('o', "output", &output_path,
-            "path to output file", NULL, 0, 0),
+                   "path to output file", NULL, 0, 0),
 
         // для дешифрования:
         // [in] путь к файлу ключа
@@ -958,16 +1089,15 @@ int main(int argc, const char *argv[]) {
         // [out] путь к расшифрованному файлу
         OPT_GROUP(C_HEADER "Decryption" C_RESET " "),
         OPT_STRING('k', "key", NULL,
-            "path to key file", NULL, 0, 0),
+                   "path to key file", NULL, 0, 0),
         OPT_STRING('i', "iv", NULL,
-            "path to initialization vector", NULL, 0, 0),
+                   "path to initialization vector", NULL, 0, 0),
         OPT_STRING('f', "file", NULL,
-            "path to encrypted file", NULL, 0, 0),
+                   "path to encrypted file", NULL, 0, 0),
         OPT_STRING('c', "chaining", NULL,
-            "block chaining mode", NULL, 0, 0),
+                   "block chaining mode, can be CBC, CFB, ECB", NULL, 0, 0),
         OPT_STRING('o', "output", NULL,
-            "path to output file", NULL, 0, 0),
-
+                   "path to output file", NULL, 0, 0),
         OPT_END(),
     };
     
@@ -979,7 +1109,13 @@ int main(int argc, const char *argv[]) {
         "For more info go to Git repo: "                                       \
         "https://github.com/Kseen715/xxx" C_RESET " ";
     argparse_describe(&argparse, argparse_top_msg, argparse_bottom_msg);
+    if (argc == 0)
+    {
+        argparse_usage(&argparse);
+        exit(0);
+    }
     argc = argparse_parse(&argparse, argc, argv);
+
 
     wchar_t *chainingMode = NULL;
 
@@ -993,7 +1129,8 @@ int main(int argc, const char *argv[]) {
         printf("%s", C_CYAN "Key generation" C_RESET "\n");
         if (key_path == NULL)
         {
-            printf("%s", C_ERROR "ERROR: Key path is not specified" C_RESET "\n");
+            printf("%s", 
+                   C_ERROR "ERROR: Key path is not specified" C_RESET "\n");
             argparse_usage(&argparse);
             exit(1);
         }
@@ -1010,7 +1147,7 @@ int main(int argc, const char *argv[]) {
         DWORD keySize = 0;
         win_read_aes_key(key_path, &keyBlob, &keySize);
         printf("keyBlob: %p\n", keyBlob);
-        printf("keySize: %d\n", keySize);
+        printf("keySize: %ld\n", keySize);
         printf("Key: ");
         print_byte_array_hex(keyBlob, keySize);
         FREE(keyBlob);
@@ -1022,7 +1159,9 @@ int main(int argc, const char *argv[]) {
         printf("%s", C_CYAN "IV generation" C_RESET "\n");
         if (iv_path == NULL)
         {
-            printf("%s", C_ERROR "ERROR: IV path is not specified" C_RESET "\n");
+            printf("%s", 
+                   C_ERROR "ERROR: IV path is not specified" \
+                   C_RESET "\n");
             argparse_usage(&argparse);
             exit(1);
         }
@@ -1049,42 +1188,67 @@ int main(int argc, const char *argv[]) {
         printf("%s", C_CYAN "Encryption" C_RESET "\n");
         if (key_path == NULL)
         {
-            printf("%s", C_ERROR "ERROR: Key path is not specified" C_RESET "\n");
+            printf("%s",
+                   C_ERROR "ERROR: Key path is not specified" \
+                   C_RESET "\n");
             argparse_usage(&argparse);
             exit(1);
         }
         if (file_path == NULL)
         {
-            printf("%s", C_ERROR "ERROR: File path is not specified" C_RESET "\n");
+            printf("%s",
+                   C_ERROR "ERROR: File path is not specified" \
+                   C_RESET "\n");
             argparse_usage(&argparse);
             exit(1);
         }
         if (chaining == NULL)
         {
-            printf("%s", C_ERROR "ERROR: Chaining mode is not specified" C_RESET "\n");
+            printf("%s",
+                   C_ERROR "ERROR: Chaining mode is not specified" \
+                   C_RESET "\n");
             argparse_usage(&argparse);
             exit(1);
         }
         if (iv_path == NULL)
         {
-            printf("%s", C_ERROR "ERROR: IV path is not specified" C_RESET "\n");
+            printf("%s", 
+                   C_ERROR "ERROR: IV path is not specified" \
+                   C_RESET "\n");
             argparse_usage(&argparse);
             exit(1);
         }
         if (output_path == NULL)
         {
-            printf("%s", C_ERROR "ERROR: Output path is not specified" C_RESET "\n");
+            printf("%s", 
+                   C_ERROR "ERROR: Output path is not specified" \
+                   C_RESET "\n");
             argparse_usage(&argparse);
             exit(1);
         }
 #ifdef _LINUX
 #endif // _LINUX
 #ifdef _WIN32
-        if (1) {
+        str_lower(chaining);
 
+        if (is_in_str(chaining, "cbc"))
+        {
+            chainingMode = BCRYPT_CHAIN_MODE_CBC;
         }
-        chainingMode = CALLOC(wchar_t, 16);
-        wcscpy(chainingMode, L"ChainingModeCBC");
+        else if (is_in_str(chaining, "cfb"))
+        {
+            chainingMode = BCRYPT_CHAIN_MODE_CFB;
+        }
+        else if (is_in_str(chaining, "ecb"))
+        {
+            chainingMode = BCRYPT_CHAIN_MODE_ECB;
+        }
+        else
+        {
+            printf("%s", C_ERROR "ERROR: Unknown chaining mode" C_RESET "\n");
+            argparse_usage(&argparse);
+            exit(1);
+        }
 
         printf(C_HEADER "Using:" C_RESET "\n");
         printf("  |- Key path:\t\t\"%s\"\n", key_path);
@@ -1096,46 +1260,73 @@ int main(int argc, const char *argv[]) {
 
         win_enc_file_aes(key_path, file_path, chaining, iv_path, 
             output_path, chainingMode);
-        FREE(chainingMode);
 #endif // _WIN32
         break;
     case 'd':
         printf("%s", C_CYAN "Decryption" C_RESET "\n");
         if (key_path == NULL)
         {
-            printf("%s", C_ERROR "ERROR: Key path is not specified" C_RESET "\n");
+            printf("%s", 
+                   C_ERROR "ERROR: Key path is not specified" \
+                   C_RESET "\n");
             argparse_usage(&argparse);
             exit(1);
         }
         if (iv_path == NULL)
         {
-            printf("%s", C_ERROR "ERROR: IV path is not specified" C_RESET "\n");
+            printf("%s", 
+                   C_ERROR "ERROR: IV path is not specified" \
+                   C_RESET "\n");
             argparse_usage(&argparse);
             exit(1);
         }
         if (file_path == NULL)
         {
-            printf("%s", C_ERROR "ERROR: File path is not specified" C_RESET "\n");
+            printf("%s", 
+                   C_ERROR "ERROR: File path is not specified" \
+                   C_RESET "\n");
             argparse_usage(&argparse);
             exit(1);
         }
         if (chaining == NULL)
         {
-            printf("%s", C_ERROR "ERROR: Chaining mode is not specified" C_RESET "\n");
+            printf("%s", 
+                   C_ERROR "ERROR: Chaining mode is not specified" \
+                   C_RESET "\n");
             argparse_usage(&argparse);
             exit(1);
         }
         if (output_path == NULL)
         {
-            printf("%s", C_ERROR "ERROR: Output path is not specified" C_RESET "\n");
+            printf("%s", 
+                   C_ERROR "ERROR: Output path is not specified" \
+                   C_RESET "\n");
             argparse_usage(&argparse);
             exit(1);
         }
 #ifdef _LINUX
 #endif // _LINUX
 #ifdef _WIN32
-        chainingMode = CALLOC(wchar_t, 16);
-        wcscpy(chainingMode, BCRYPT_CHAIN_MODE_CBC);
+        str_lower(chaining);
+
+        if (is_in_str(chaining, "cbc"))
+        {
+            chainingMode = BCRYPT_CHAIN_MODE_CBC;
+        }
+        else if (is_in_str(chaining, "cfb"))
+        {
+            chainingMode = BCRYPT_CHAIN_MODE_CFB;
+        }
+        else if (is_in_str(chaining, "ecb"))
+        {
+            chainingMode = BCRYPT_CHAIN_MODE_ECB;
+        }
+        else
+        {
+            printf("%s", C_ERROR "ERROR: Unknown chaining mode" C_RESET "\n");
+            argparse_usage(&argparse);
+            exit(1);
+        }
 
         printf(C_HEADER "Using:" C_RESET "\n");
         printf("  |- Key path:\t\t\"%s\"\n", key_path);
@@ -1147,7 +1338,6 @@ int main(int argc, const char *argv[]) {
 
         win_dec_file_aes(key_path, file_path, chaining, iv_path, 
             output_path, chainingMode);
-        FREE(chainingMode);
 #endif // _WIN32
         break;
     default:

@@ -7,7 +7,7 @@ ERRORS = -Wall
 # -Wno-unused-variable
 # -Wfatal-errors
 CFLAGS = -c $(ERRORS) -fPIC -std=c17
-# CFLAGS += -D _DEBUG
+CFLAGS += -D _DEBUG
 BUILD_DIR = build
 EXE_NAME = cifs
 SOURCES = $(wildcard *.c)
@@ -36,7 +36,7 @@ TARGET = linux
 endif
 
 ifeq ($(TARGET),windows)
-RM = del /Q
+RM = rm
 COPY = copy
 SYS_FLAGS = -D _WIN32
 EXE_EXTENSION = .exe
@@ -124,7 +124,9 @@ platform:
 	$(ECHO) $(SYS_MSG)
 
 clean:
-	$(RM) $(BUILD_DIR)/*
+	if [ -d "$(BUILD_DIR)" ] && [ "$(wildcard $(BUILD_DIR)/*)" ]; then $(RM) $(BUILD_DIR)/*; fi
+	if [ -d "temp" ] && [ "$(wildcard temp/*)" ]; then $(RM) temp/*; fi
+	if [ -d "tmp" ] && [ "$(wildcard tmp/*)" ]; then $(RM) tmp/*; fi
 
 help:
 	$(ECHO) "make build - build the project"
