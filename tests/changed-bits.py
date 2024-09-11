@@ -77,9 +77,10 @@ def main():
             #     break
         if log_file_hand is not None:
             log_file_hand.write(f'{i},{total}\n')
-        else:
-            print(f'{total}')
-    log_file_hand.close()
+
+    print(f'{total}')
+    if log_file_hand is not None:
+        log_file_hand.close()
 
 
 if __name__ == '__main__':

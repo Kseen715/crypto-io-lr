@@ -7,7 +7,7 @@ ERRORS = -Wall
 # -Wno-unused-variable
 # -Wfatal-errors
 CFLAGS = -c $(ERRORS) -fPIC -std=c17
-CFLAGS += -D _DEBUG
+# CFLAGS += -D _DEBUG
 BUILD_DIR = build
 EXE_NAME = cifs
 SOURCES = $(wildcard *.c)
