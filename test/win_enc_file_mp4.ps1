@@ -1,0 +1,1 @@
+.\build\cifs.exe -m enc -k .\temp\key.bin -i .\temp\iv.bin -f .\test\ncv.mp4 -c no -o .\temp\demo-mp4.enc
