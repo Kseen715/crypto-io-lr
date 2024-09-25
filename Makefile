@@ -6,7 +6,7 @@ ERRORS = -Wall
 # -Wpedantic
 # -Wno-unused-variable
 # -Wfatal-errors
-CFLAGS = -c $(ERRORS) -fPIC -std=c17
+CFLAGS = -c $(ERRORS) -fPIC -std=c11
 # CFLAGS += -D _DEBUG
 BUILD_DIR = build
 EXE_NAME = cifs
@@ -105,7 +105,7 @@ endif
 # 	$(CC) $(CFLAGS) $(SYS_FLAGS) $(C_INCLUDE_PATH) -c $< -o $@
 
 build_dir:
-	@if [ ! -d $(BUILD_DIR) ]; then mkdir $(BUILD_DIR); fi
+	@if not exist $(BUILD_DIR) mkdir $(BUILD_DIR)
 
 run: build
 	$(BUILD_DIR)/$(EXE_NAME)$(EXE_EXTENSION)
