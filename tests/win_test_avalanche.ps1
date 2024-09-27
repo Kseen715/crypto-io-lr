@@ -3,7 +3,11 @@ $file_to_test = ".\tests\lorem.txt"
 $ecb_log_file = ".\temp\ecb.log"
 $cbc_log_file = ".\temp\cbc.log"
 $cfb_log_file = ".\temp\cfb.log"
-$bits_to_flip = @(0, 2, 8, 16, 32, 64, 128, 256, 384, 512, 768, 1024, 1536, 2048, 2500, 3084, 3500, 4096, 4500, 5000, 5500, 6000, 6500, 6750, 7000, 7250, 7500, 7750, 8192)  # Define the array with values to test
+# $bits_to_flip = @(0, 2, 8, 16, 32, 64, 128, 256, 384, 512, 768, 1024, 1536, 2048, 2500, 3084, 3500, 4096, 4500, 5000, 5500, 6000, 6500, 6750, 7000, 7250, 7500, 7750, 8192)  # Define the array with values to test
+$bits_to_flip = @()
+for ($i = 0; $i -le 511; $i++) {
+    $bits_to_flip += $i
+}
 
 # copy test file to temp
 Copy-Item $file_to_test .\temp\aval
