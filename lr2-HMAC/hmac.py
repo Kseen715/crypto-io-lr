@@ -73,35 +73,45 @@ import os
 import random
 import argparse
 
+import tqdm
 import pyautogui
 from PIL import ImageGrab
+import colorama as clr
 
-def get_pixel_rgb():
+
+def get_mouse_pixel_data():
     # Get the current mouse position
     x, y = pyautogui.position()
-    
+
     # Capture the screen at the mouse position
     screen = ImageGrab.grab(bbox=(x, y, x+1, y+1))
-    
+
     # Get the RGB value of the pixel
     pixel = screen.load()
     r, g, b = pixel[0, 0]
-    
+
     return x, y, r, g, b
+
 
 def get_salt(byte_len) -> int:
     salt = 0
     bitlen = byte_len * 8
-    while bitlen > 0:
-        prev_x, prev_y, prev_r, prev_g, prev_b = None, None, None, None, None
+    prev_x, prev_y, prev_r, prev_g, prev_b = None, None, None, None, None
+    print(f'{clr.Fore.YELLOW}Getting salt. {
+        '\033[4m'}Move the mouse around the screen.{clr.Style.RESET_ALL}')
+    # for _ in range((bitlen // 5) + 1):
+    for _ in tqdm.tqdm(range((bitlen // 5) + 1), desc='Getting salt'):
         while True:
-            x, y, r, g, b = get_pixel_rgb()
+            x, y, r, g, b = get_mouse_pixel_data()
             if (x, y, r, g, b) != (prev_x, prev_y, prev_r, prev_g, prev_b):
+                prev_x, prev_y, prev_r, prev_g, prev_b = x, y, r, g, b
                 salt = (salt << 1) | (x & 0x01)
                 salt = (salt << 1) | (y & 0x01)
                 salt = (salt << 1) | (r & 0x01)
                 salt = (salt << 1) | (g & 0x01)
                 salt = (salt << 1) | (b & 0x01)
+                # print last 5 bits in binary, with leading zeros
+                # print(f'{salt & 0x1F:05b}', end='\r')
                 bitlen -= 5
                 break
     # cut the excessive bits
@@ -109,7 +119,20 @@ def get_salt(byte_len) -> int:
     return salt
 
 
+def count_zeros_ones_binary(num):
+    zeros = 0
+    ones = 0
+    while num:
+        if num & 1:
+            ones += 1
+        else:
+            zeros += 1
+        num >>= 1
+    return zeros, ones
+
+
 if __name__ == "__main__":
     salt = get_salt(32)
     print(hex(salt))
     print(bin(salt))
+    print(count_zeros_ones_binary(salt), sum(count_zeros_ones_binary(salt)))
