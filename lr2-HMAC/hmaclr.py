@@ -75,8 +75,10 @@ def get_password_salted_hash(salt, password):
     # invert bits in password
     # repr every char in password as bytes, then invert bits in every byte
     password = int.from_bytes(
-        bytes([(~char + 256) % 256 for char in password.encode('utf-8')]), 'big')
-    # if password longer than 32 bytes, fold it recursively to 32 bytes using XOR
+        bytes([(~char + 256) % 256
+               for char in password.encode('utf-8')]), 'big')
+    # if password longer than 32 bytes, fold it recursively
+    # to 32 bytes using XOR
     while password.bit_length() > 256:
         password = (password >> 256) ^ (
             password & 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF)
@@ -101,7 +103,8 @@ def cypher_file(file_path, passw, output_path=None):
     assert output_path is not None, 'Output path is not provided'
     if os.path.exists(output_path):
         response = input(f'{clr.Fore.YELLOW}File {
-                         output_path} already exists. Overwrite? [Y/n]{clr.Style.RESET_ALL}')
+                         output_path} already exists. Overwrite? [Y/n]{
+                             clr.Style.RESET_ALL}')
         if response.lower() != 'y' and response.lower() != '':
             return
     if not os.path.exists(os.path.dirname(output_path)):
@@ -131,7 +134,8 @@ def decypher_file(file_path, passw, output_path=None, check=True):
     assert output_path is not None, 'Output path is not provided'
     if os.path.exists(output_path):
         response = input(f'{clr.Fore.YELLOW}File {
-                         output_path} already exists. Overwrite? [Y/n]{clr.Style.RESET_ALL}')
+                         output_path} already exists. Overwrite? [Y/n]{
+                             clr.Style.RESET_ALL}')
         if response.lower() != 'y' and response.lower() != '':
             return
     if not os.path.exists(os.path.dirname(output_path)):
@@ -160,7 +164,9 @@ def decypher_file(file_path, passw, output_path=None, check=True):
 
 def main():
     parser = argparse.ArgumentParser(
-        description='Encrypt/decrypt file with HMAC-AES-256-CFB')
+        description=f'{clr.Fore.CYAN
+                       }Encrypt/decrypt file with HMAC-AES-256-CFB{
+                           clr.Style.RESET_ALL}')
     parser.add_argument('file', type=str, help='File to encrypt/decrypt')
     parser.add_argument('output', type=str, help='Output file')
     parser.add_argument('-d', '--decrypt',
