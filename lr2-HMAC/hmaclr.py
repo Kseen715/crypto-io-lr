@@ -107,15 +107,12 @@ def cypher_file(file_path, passw, output_path=None):
     if not os.path.exists(os.path.dirname(output_path)):
         os.makedirs(os.path.dirname(output_path))
     salt = get_salt(32)
-    print(salt)
     iv = get_iv(16)
-    print("IV: ", iv)
     key = get_password_salted_hash(salt, passw)
-    print(key)
     hmac = None
     with open(file_path, 'rb') as file:
         hmac = get_hmac(key, file.read())
-    print(hmac)
+    # print(hmac)
     cipher = AES.new(key, AES.MODE_CFB, iv)
     print(f'Encrypting file {file_path} to {output_path}...')
     with open(file_path, 'rb') as file:
