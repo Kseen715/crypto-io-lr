@@ -11,165 +11,224 @@ from Crypto.Random import get_random_bytes
 from Crypto.Util.Padding import pad, unpad
 
 
-key = os.urandom(24)
-
 # ✨ 3DES ECB -------------------------------------------------------------------
-ciper = DES3.new(key, DES3.MODE_ECB)
-data = b"Secret Message".ljust(16)  # Padding to block size
 
-# Encrypt
-ciphertext = ciper.encrypt(data)
+class DES3_ECB_EDE:
+    def __init__(self, key1, key2, key3):
+        self.key = key1 + key2 + key3
+        assert len(self.key) == 24, f"Key must be 24 bytes long, got {len(self.key)}"
 
-# Decrypt
-plaintext = ciper.decrypt(ciphertext).strip()
+    def encrypt(self, data):
+        data = pad(data, DES3.block_size)
+        cipher = DES3.new(self.key, DES3.MODE_ECB)
+        data = cipher.encrypt(data)
+        return data
+
+    def decrypt(self, data):
+        cipher = DES3.new(self.key, DES3.MODE_ECB)
+        data = cipher.decrypt(data)
+        data = unpad(data, DES3.block_size)
+        return data
+
+
+data = b"Secret Message"
+key = get_random_bytes(24)
+
+d3_ecb_ede = DES3_ECB_EDE(key[0:8], key[8:16], key[16:24])
+
+ciphertext = d3_ecb_ede.encrypt(data)
+plaintext = d3_ecb_ede.decrypt(ciphertext)
 
 print("Ciphertext:", ciphertext)
 print("Plaintext:", plaintext)
 
 # ✨ 3DES Inner CBC -------------------------------------------------------------
-# во внутреннем CBC сцепление блоков происходит на каждом из трех этапов 
+# во внутреннем CBC сцепление блоков происходит на каждом из трех этапов
 # шифрования
 
-def des_cbc_encrypt(key, iv, data):
-    cipher = DES.new(key, DES.MODE_CBC, iv)
-    return cipher.encrypt(data)
 
-def des_cbc_decrypt(key, iv, data):
-    cipher = DES.new(key, DES.MODE_CBC, iv)
-    return cipher.decrypt(data)
+class DES3_INNER_CBC_EDE:
+    def __init__(self, key1, key2, key3, iv):
+        self.key1 = key1
+        self.key2 = key2
+        self.key3 = key3
+        self.iv = iv
 
-# Keys and IVs for each DES operation
-key1 = get_random_bytes(8)
-key2 = get_random_bytes(8)
-key3 = get_random_bytes(8)
-iv = get_random_bytes(8)  # Single IV for inner CBC
+    def encrypt(self, data):
+        data = pad(data, DES.block_size)
+        cipher = DES.new(self.key1, DES.MODE_CBC, self.iv)
+        data = cipher.encrypt(data)
+
+        cipher = DES.new(self.key2, DES.MODE_CBC, self.iv)
+        data = cipher.encrypt(data)
+
+        cipher = DES.new(self.key3, DES.MODE_CBC, self.iv)
+        data = cipher.encrypt(data)
+
+        return data
+
+    def decrypt(self, data):
+        cipher = DES.new(self.key3, DES.MODE_CBC, self.iv)
+        data = cipher.decrypt(data)
+
+        cipher = DES.new(self.key2, DES.MODE_CBC, self.iv)
+        data = cipher.decrypt(data)
+
+        cipher = DES.new(self.key1, DES.MODE_CBC, self.iv)
+        data = cipher.decrypt(data)
+        data = unpad(data, DES.block_size)
+
+        return data
+
 
 # Data to encrypt
-data = b"Secret Message".ljust(16)  # Padding to block size
+data = b"Secret Message"
 
-# Encrypt with DES1
-ciphertext1 = des_cbc_encrypt(key1, iv, data)
+# Keys and IVs for each DES operation
+key = get_random_bytes(24)
+iv = get_random_bytes(8)  # Single IV for inner CBC
 
-# Decrypt with DES2
-ciphertext2 = des_cbc_decrypt(key2, iv, ciphertext1)
+d3_inner_cbc=DES3_INNER_CBC_EDE(key[0:8], key[8:16], key[16:24], iv)
 
-# Encrypt with DES3
-ciphertext3 = des_cbc_encrypt(key3, iv, ciphertext2)
+ciphertext=d3_inner_cbc.encrypt(data)
+plaintext=d3_inner_cbc.decrypt(ciphertext)
 
-# Decrypt with DES3
-plaintext2 = des_cbc_decrypt(key3, iv, ciphertext3)
-
-# Encrypt with DES2
-plaintext1 = des_cbc_encrypt(key2, iv, plaintext2)
-
-# Decrypt with DES1
-plaintext = des_cbc_decrypt(key1, iv, plaintext1).strip()
-
-print("Ciphertext:", ciphertext3)
+print("Ciphertext:", ciphertext)
 print("Plaintext:", plaintext)
 
 # ✨ 3DES Outer CBC -------------------------------------------------------------
 # во внешнем CBC сцепление работает так, как будто все три этапа шифрования
 # являются одним
 
-# Key must be either 16 or 24 bytes long
-key = b'Sixteen byte key'
+
+class DES3_OUTER_CBC_EDE:
+    def __init__(self, key1, key2, key3, iv):
+        self.key=key1 + key2 + key3
+        assert len(self.key) == 24, f"Key must be 24 bytes long, got {
+            len(self.key)}"
+        self.iv=iv
+
+    def encrypt(self, data):
+        data=pad(data, DES.block_size)
+        cipher_encrypt=DES3.new(self.key, DES3.MODE_CBC, self.iv)
+        data=cipher_encrypt.encrypt(data)
+        return data
+
+    def decrypt(self, data):
+        cipher_decrypt=DES3.new(self.key, DES3.MODE_CBC, self.iv)
+        data=cipher_decrypt.decrypt(data)
+        data=unpad(data, DES.block_size)
+        return data
+
 
 # Data to be encrypted
-data = b"Secret Message"
+data=b"Secret Message"
+
+# Key must be either 24 bytes long
+key=get_random_bytes(24)
 
 # Generate a random IV
-iv = get_random_bytes(DES3.block_size)
+iv=get_random_bytes(DES3.block_size)
 
-# Padding the data to be a multiple of the block size
-padded_data = pad(data, DES3.block_size)
+d3_outer_cbc=DES3_OUTER_CBC_EDE(key[0:8], key[8:16], key[16:24], iv)
 
-# Encrypt
-cipher_encrypt = DES3.new(key, DES3.MODE_CBC, iv)
-ciphertext = cipher_encrypt.encrypt(padded_data)
-
-# Decrypt
-cipher_decrypt = DES3.new(key, DES3.MODE_CBC, iv)
-decrypted_padded_data = cipher_decrypt.decrypt(ciphertext)
-
-# Unpadding the decrypted data
-plaintext = unpad(decrypted_padded_data, DES3.block_size)
+ciphertext=d3_outer_cbc.encrypt(data)
+plaintext=d3_outer_cbc.decrypt(ciphertext)
 
 print("Ciphertext:", ciphertext)
 print("Plaintext:", plaintext)
 
 # ✨ 3DES with pad --------------------------------------------------------------
-# In the 3DES with pad mode, between the first and second encryptions and 
-# between the second and third encryptions, the text is supplemented with a 
-# string of random bits half a block long. This ensures that the encryption 
-# blocks overlap.
-
-# В режиме 3DES with pad между первым и вторым, а также между вторым и третьим 
-# шифрованиями текст дополняется строкой случайных битов длинной полблока. 
+# В режиме 3DES with pad между первым и вторым, а также между вторым и третьим
+# шифрованиями текст дополняется строкой случайных битов длинной полблока.
 # Таким образом обеспечивается перекрытие блоков шифрования
-def add_random_bits(data, block_size):
-    random_bits = get_random_bytes(block_size // 2)
-    return random_bits + data
+
+class DES3_ECB_PAD_EDE:
+    def __init__(self, key1, key2, key3):
+        self.key1 = key1
+        self.key2 = key2
+        self.key3 = key3
+
+    def __add_random_bits(self, data, block_size):
+        random_bits=get_random_bytes(block_size // 2)
+        return random_bits + data
+
+    def __remove_random_bits(self, data, block_size):
+        return data[block_size // 2:]
+
+    def encrypt(self, data):
+
+        # Padding the data to be a multiple of the block size
+        data=pad(data, DES.block_size)
+
+        # Encrypt with the first key
+        cipher1=DES.new(self.key1, DES.MODE_ECB)
+        data=cipher1.encrypt(data)
+
+        # Add random bits between first and second encryption
+        data=self.__add_random_bits(data, DES.block_size)
+
+        # Padding the data to be a multiple of the block size
+        data=pad(data, DES.block_size)
+
+        # Encrypt with the second key
+        cipher2=DES.new(self.key2, DES.MODE_ECB)
+        data=cipher2.encrypt(data)
+
+        # Add random bits between second and third encryption
+        data=self.__add_random_bits(data, DES.block_size)
+
+        # Padd the data to be a multiple of the block size
+        data=pad(data, DES.block_size)
+
+        # Encrypt with the third key
+        cipher3=DES.new(self.key3, DES.MODE_ECB)
+        data=cipher3.encrypt(data)
+
+        return data
+
+    def decrypt(self, data):
+        # Decrypt with the third key
+        cipher3=DES.new(self.key3, DES.MODE_ECB)
+        data=cipher3.decrypt(data)
+
+        # Unpad the decrypted data
+        data=unpad(data, DES.block_size)
+
+        # Remove random bits between second and third encryption from the start of the data
+        data=self.__remove_random_bits(
+            data, DES.block_size)
+
+        # Decrypt with the second key
+        cipher2=DES.new(self.key2, DES.MODE_ECB)
+        data=cipher2.decrypt(data)
+
+        # Unpad the decrypted data
+        data=unpad(data, DES.block_size)
+
+        # Remove random bits between first and second encryption
+        data=self.__remove_random_bits(
+            data, DES.block_size)
+
+        # Decrypt with the first key
+        cipher1=DES.new(self.key1, DES.MODE_ECB)
+        data=cipher1.decrypt(data)
+
+        # Unpad the decrypted data
+        data=unpad(data, DES.block_size)
+        return data
+
 
 # Keys must be 8 bytes long each
-key1 = b'8byteke1'
-key2 = b'8byteke2'
-key3 = b'8byteke3'
+key=get_random_bytes(24)
 
 # Data to be encrypted
-data = b'Your data here'
+data=b'Your data here'
 
-# Padding the data to be a multiple of the block size
-padded_data = pad(data, DES.block_size)
+d3_ecb_pad_ede=DES3_ECB_PAD_EDE(key[0:8], key[8:16], key[16:24])
 
-# Encrypt with the first key
-cipher1 = DES.new(key1, DES.MODE_ECB)
-ciphertext1 = cipher1.encrypt(padded_data)
-
-# Add random bits between first and second encryption
-ciphertext1 = add_random_bits(ciphertext1, DES.block_size)
-
-# Padding the data to be a multiple of the block size
-ciphertext1 = pad(ciphertext1, DES.block_size)
-
-# Encrypt with the second key
-cipher2 = DES.new(key2, DES.MODE_ECB)
-ciphertext2 = cipher2.encrypt(ciphertext1)
-
-# Add random bits between second and third encryption
-ciphertext2 = add_random_bits(ciphertext2, DES.block_size)
-
-# Padd the data to be a multiple of the block size
-ciphertext2 = pad(ciphertext2, DES.block_size)
-
-# Encrypt with the third key
-cipher3 = DES.new(key3, DES.MODE_ECB)
-ciphertext3 = cipher3.encrypt(ciphertext2)
-
-# Decryption process
-# Decrypt with the third key
-decrypted_data1 = cipher3.decrypt(ciphertext3)
-
-# Unpad the decrypted data
-decrypted_data1 = unpad(decrypted_data1, DES.block_size)
-
-# Remove random bits between second and third encryption from the start of the data
-decrypted_data1 = decrypted_data1[DES.block_size // 2:]
-
-# Decrypt with the second key
-decrypted_data2 = cipher2.decrypt(decrypted_data1)
-
-# Unpad the decrypted data
-decrypted_data2 = unpad(decrypted_data2, DES.block_size)
-
-# Remove random bits between first and second encryption
-decrypted_data2 = decrypted_data2[DES.block_size // 2:]
-
-# Decrypt with the first key
-decrypted_data3 = cipher1.decrypt(decrypted_data2)
-
-# Unpad the decrypted data
-final_data = unpad(decrypted_data3, DES.block_size)
+ciphertext3=d3_ecb_pad_ede.encrypt(data)
+final_data=d3_ecb_pad_ede.decrypt(ciphertext3)
 
 print(f"Encrypted: {ciphertext3}")
 print(f"Decrypted: {final_data}")
