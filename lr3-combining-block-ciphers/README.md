@@ -1,10 +1,10 @@
 # Combinig block ciphers
 
-There are many ways to combine block algorithms to get new algorithms. The impetus behind these schemes is to try to increase security without going through the trouble of designing a new algorithm. DES is a secure algorithm; it has been cryptanalyzed for a good 20 years and the most practical way to break it is still brute force. However, the key is too short. Wouldn't it be nice to use DES as a building block for another algorithm with a longer key?
+A multitude of techniques exist for the combination of block algorithms, resulting in the generation of novel algorithms. The rationale behind these approaches is to enhance security without the necessity of developing an entirely novel algorithm. DES is a secure algorithm; it has been subjected to cryptanalysis for approximately 20 years, and the most practical method for breaking it remains brute force. Nevertheless, the key is insufficiently lengthy. It would be advantageous to utilise DES as a foundation for an alternative algorithm with a longer key.
 
-Multiple encryption is one combination technique: using an algorithm to encrypt the same plaintext block multiple times with multiple keys. Cascading is like multiple encryption, but uses different algorithms. There are other techniques.
+A further technique for combining algorithms is to use one algorithm to encrypt the same plaintext block on multiple occasions, with multiple keys. Cascading is a technique that employs a series of encryption algorithms, each applied to the same plaintext block. There are other techniques that may be employed.
 
-Encrypting a plaintext block twice with the same key, whether with the same algorithm or a different one, is not smart. For the same algorithm, it does not affect the complexity of a brute-force search. (Remember, you assume a cryptanalyst knows the algorithm including the number of encryptions used.) For different algorithms, it may or may not. If you are going to use any of the techniques in this chapter, make sure the multiple keys are different and independent.
+The encryption of a plaintext block on two occasions with the same key, whether with the same or a different algorithm, is an unwise approach. The complexity of a brute-force search is not affected by the use of the same algorithm. It should be noted that the assumption is made that the cryptanalyst is aware of the algorithm, including the number of encryptions that have been employed. In the case of different algorithms, this is not necessarily the case. In the event that any of the techniques outlined in this chapter are to be employed, it is imperative that the multiple keys in question are distinct and independent.
 
 ## Used techniques
 
@@ -15,11 +15,19 @@ Encrypting a plaintext block twice with the same key, whether with the same algo
 
 ### 3DES ECB
 
+Common implementations of 3DES. 
+
 ### 3DES Inner CBC
+
+In an internal CBC, block cohesion occurs at each of the three stages of encryption.
 
 ### 3DES Outer CBC
 
+In an external CBC, the coupling functions as if the three encryption steps were a single, unified process.
+
 ### 3DES with pad
+
+In the 3DES with pad mode, a string of random bits half a block long is appended to the text between the first and second encryptions and between the second and third encryptions. This ensures that the encryption blocks overlap.
 
 ## Result of benchmakrs
 ![plot](https://github.com/user-attachments/assets/311a8778-fe19-4b0f-99da-e8e93da5a32f)
