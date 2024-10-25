@@ -210,14 +210,156 @@ def test():
     d3_ecb_pad_ede = DES3_ECB_PAD_EDE(key[0:8], key[8:16], key[16:24])
     ciphertext = d3_ecb_pad_ede.encrypt(data)
     plaintext = d3_ecb_pad_ede.decrypt(ciphertext)
-    
+
     if sha256(data).digest() != sha256(plaintext).digest():
         raise Exception("3DES with pad failed")
     else:
         print(f"{colorama.Fore.GREEN}3DES with pad passed{
             colorama.Style.RESET_ALL}")
 
+def save_keys(key1, key2, key3, filename):
+    '''
+    Save the 3 keys to a file
+    
+    Args:
+        key1 (bytes): The first key
+        key2 (bytes): The second key
+        key3 (bytes): The third key
+        filename (str): The name of the file to save the keys to
+    '''
+    with open(filename, "wb") as f:
+        f.write(key1)
+        f.write(key2)
+        f.write(key3)
 
+def read_keys(filename):
+    '''
+    Read the 3 keys from a file
+    
+    Args:
+        filename (str): The name of the file to read the keys from
+    
+    Returns:
+        tuple: The 3 keys
+    '''
+
+def generate_keys():
+    '''
+    Generate 3 random keys
+    
+    Returns:
+        tuple: The 3 keys
+    '''
+    key1 = get_random_bytes(8)
+    key2 = get_random_bytes(8)
+    key3 = get_random_bytes(8)
+    return key1, key2, key3
+
+def save_iv(iv, filename):
+    '''
+    Save the IV to a file
+    
+    Args:
+        iv (bytes): The IV
+        filename (str): The name of the file to save the IV to
+    '''
+    with open(filename, "wb") as f:
+        f.write(iv)
+
+def read_iv(filename):
+    '''
+    Read the IV from a file
+    
+    Args:
+        filename (str): The name of the file to read the IV from
+    
+    Returns:
+        bytes: The IV
+    '''
+    with open(filename, "rb") as f:
+        iv = f.read()
+    return iv
+
+def generate_iv():
+    '''
+    Generate a random IV
+    
+    Returns:
+        bytes: The IV
+    '''
+    return get_random_bytes(DES3.block_size)
+
+def encrypt_file(input_file, output_file, mode, key1, key2, key3, iv=None):
+    '''
+    Encrypt a file using 3DES
+    
+    Args:
+        input_file (str): The name of the file to encrypt
+        output_file (str): The name of the file to save the encrypted data to
+        mode (str): The mode of operation to use
+        key1 (bytes): The first key
+        key2 (bytes): The second key
+        key3 (bytes): The third key
+        iv (bytes): The IV
+    '''
+    with open(input_file, "rb") as f:
+        data = f.read()
+    if mode == "ecb_ede":
+        cipher = DES3_ECB_EDE(key1, key2, key3)
+    elif mode == "inner_cbc_ede":
+        cipher = DES3_INNER_CBC_EDE(key1, key2, key3, iv)
+    elif mode == "outer_cbc_ede":
+        cipher = DES3_OUTER_CBC_EDE(key1, key2, key3, iv)
+    elif mode == "ecb_pad_ede":
+        cipher = DES3_ECB_PAD_EDE(key1, key2, key3)
+    else:
+        raise ValueError(f"Invalid mode: {mode}")
+    ciphertext = cipher.encrypt(data)
+    with open(output_file, "wb") as f:
+        f.write(ciphertext)
+
+def decrypt_file(input_file, output_file, mode, key1, key2, key3, iv=None):
+    '''
+    Decrypt a file using 3DES
+    
+    Args:
+        input_file (str): The name of the file to decrypt
+        output_file (str): The name of the file to save the decrypted data to
+        mode (str): The mode of operation to use
+        key1 (bytes): The first key
+        key2 (bytes): The second key
+        key3 (bytes): The third key
+        iv (bytes): The IV
+    '''
+    with open(input_file, "rb") as f:
+        data = f.read()
+    if mode == "ecb_ede":
+        cipher = DES3_ECB_EDE(key1, key2, key3)
+    elif mode == "inner_cbc_ede":
+        cipher = DES3_INNER_CBC_EDE(key1, key2, key3, iv)
+    elif mode == "outer_cbc_ede":
+        cipher = DES3_OUTER_CBC_EDE(key1, key2, key3, iv)
+    elif mode == "ecb_pad_ede":
+        cipher = DES3_ECB_PAD_EDE(key1, key2, key3)
+    else:
+        raise ValueError(f"Invalid mode: {mode}")
+    plaintext = cipher.decrypt(data)
+    with open(output_file, "wb") as f:
+        f.write(plaintext)
+
+
+def main():
+    parser = argparse.ArgumentParser(
+        description="3DES modes of operation")
+    parser.add_argument(
+        "-t", "--test", action="store_true", help="Run the tests")
+    parser.add_argument(
+        "-y", "--yes", action="store_true", help="Skip the confirmation")
+    args = parser.parse_args()
+    if args.test:
+        test()
+
+    
 
 if __name__ == "__main__":
     test()
