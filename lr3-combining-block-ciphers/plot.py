@@ -58,12 +58,13 @@ if __name__ == '__main__':
 
     print(data)
 
+    percent_to_plot = 25
+    plot_lim = int(100 / percent_to_plot)
     fig, ax = plt.subplots(figsize=(10, 6))
     for method in data['method'].unique():
         method_data = data[data['method'] == method]
-        ax.errorbar(method_data['file_size'], method_data['time_mean'], yerr=[method_data['time_mean'] - method_data['time_min'], method_data['time_max'] - method_data['time_mean']], label=method, fmt='-o', color=color[data['method'].unique().tolist().index(method)])
-        # print(method_data.columns) 
-        ax.plot(method_data['file_size'], method_data['time_poly'], label=f'{method} poly {method_data["poly"].iloc[0]}', linestyle='--',
+        ax.errorbar(method_data['file_size'][::plot_lim], method_data['time_mean'][::plot_lim], yerr=[(method_data['time_mean'] - method_data['time_min'])[::plot_lim], (method_data['time_max'] - method_data['time_mean'])[::plot_lim]], label=method, fmt='-o', color=color[data['method'].unique().tolist().index(method)])
+        ax.plot(method_data['file_size'][::plot_lim], method_data['time_poly'][::plot_lim], label=f'{method} poly {method_data["poly"].iloc[0]}', linestyle='--',
                 color=color[data['method'].unique().tolist().index(method)])
     ax.set_xlabel('File size (MB)')
     ax.set_ylabel('Time (ms)')

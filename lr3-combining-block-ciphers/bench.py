@@ -18,8 +18,8 @@ if __name__ == '__main__':
         os.makedirs('temp')
         print('Directory temp created')
 
-    size_range = range(1, 11)
-    test_iterations = 3
+    size_range = range(1, 101)
+    test_iterations = 5
 
     # generate files from 1 MB to 100 MB with 1 MB step
     for i in size_range:
@@ -40,31 +40,60 @@ if __name__ == '__main__':
              "inner_cbc_ede",
              "outer_cbc_ede",
              "ecb_pad_ede"]
+    
+    mod_count = len(modes)
 
+    total_iterations = mod_count * len(size_range) * test_iterations
+    total_digits = len(str(total_iterations))
     with open(f'temp/test.csv', 'w') as f:
         f.write('method,iteration,file_size,time\n')
         for mode in modes:
             for j in size_range:
+                input_file = f'temp/file_{j}.bin'
+                with open(input_file, "rb") as fd:
+                    data = fd.read()
                 for i in range(0, test_iterations):
-                    input_file = f'temp/file_{j}.bin'
-                    encrypted_file = f'temp/encrypted_{j}.bin'
-                    decrypted_file = f'temp/decrypted_{j}.bin'
+                    # encrypted_file = f'temp/encrypted_{j}.bin'
+                    # decrypted_file = f'temp/decrypted_{j}.bin'
 
+                    # {current mode num}/{total mod num}.{current size}/{total size}.{current test num}/{total test num}
+                    # prefix_str = str(modes.index(mode) + 1) + '/' + str(mod_count) + '.' + str(j) + '/' + str(size_range[-1]) + '.' + str(i + 1) + '/' + str(test_iterations)
+                    current_iteration = modes.index(mode) * len(size_range) * test_iterations + j * test_iterations + i + 1
+                    
                     print(
-                        f'{colorama.Fore.YELLOW}Method: {
-                            mode}, File size: {
-                            j} MB, Test {
-                            i+1}/{test_iterations}{
-                            colorama.Style.RESET_ALL}')
+                        f'{colorama.Fore.YELLOW}{current_iteration:{total_digits}d}/{total_iterations:{total_digits}d} Method: {mode}, File size: {j} MB, Test {i+1}{colorama.Style.RESET_ALL}')
+
 
                     start = time.time()
-                    cbk.encrypt_file(
-                        input_file, encrypted_file, mode, key1, key2, key3, iv)
+                    if mode == "ecb_ede":
+                        cipher = cbk.DES3_ECB_EDE(key1, key2, key3)
+                    elif mode == "inner_cbc_ede":
+                        cipher = cbk.DES3_INNER_CBC_EDE(key1, key2, key3, iv)
+                    elif mode == "outer_cbc_ede":
+                        cipher = cbk.DES3_OUTER_CBC_EDE(key1, key2, key3, iv)
+                    elif mode == "ecb_pad_ede":
+                        cipher = cbk.DES3_ECB_PAD_EDE(key1, key2, key3)
+                    else:
+                        raise ValueError(f"Invalid mode: {mode}")
+                    ciphertext = cipher.encrypt(data)
+                    # cbk.encrypt_file(
+                    #     input_file, encrypted_file, mode, key1, key2, key3, iv)
                     end = time.time()
 
                     start = time.time()
-                    cbk.decrypt_file(
-                        encrypted_file, decrypted_file, mode, key1, key2, key3, iv)
+                    if mode == "ecb_ede":
+                        cipher = cbk.DES3_ECB_EDE(key1, key2, key3)
+                    elif mode == "inner_cbc_ede":
+                        cipher = cbk.DES3_INNER_CBC_EDE(key1, key2, key3, iv)
+                    elif mode == "outer_cbc_ede":
+                        cipher = cbk.DES3_OUTER_CBC_EDE(key1, key2, key3, iv)
+                    elif mode == "ecb_pad_ede":
+                        cipher = cbk.DES3_ECB_PAD_EDE(key1, key2, key3)
+                    else:
+                        raise ValueError(f"Invalid mode: {mode}")
+                    plaintext = cipher.decrypt(ciphertext)
+                    # cbk.decrypt_file(
+                    #     encrypted_file, decrypted_file, mode, key1, key2, key3, iv)
                     end = time.time()
 
                     f.write(f'{mode},{i+1},{j},{end-start}\n')
