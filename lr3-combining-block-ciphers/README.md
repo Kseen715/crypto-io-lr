@@ -21,4 +21,5 @@ Encrypting a plaintext block twice with the same key, whether with the same algo
 
 ### 3DES with pad
 
-## Results
+## Result of benchmakrs
+![plot](https://github.com/user-attachments/assets/311a8778-fe19-4b0f-99da-e8e93da5a32f)
