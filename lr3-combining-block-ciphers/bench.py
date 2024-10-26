@@ -18,7 +18,7 @@ if __name__ == '__main__':
         os.makedirs('temp')
         print('Directory temp created')
 
-    size_range = range(1, 101)
+    size_range = range(1, 102, 10)
     test_iterations = 5
 
     # generate files from 1 MB to 100 MB with 1 MB step
@@ -37,13 +37,14 @@ if __name__ == '__main__':
     iv = cbk.generate_iv()
 
     modes = ["ecb_ede",
+             "native_ede",
              "inner_cbc_ede",
              "outer_cbc_ede",
              "ecb_pad_ede"]
     
     mod_count = len(modes)
 
-    total_iterations = mod_count * len(size_range) * test_iterations
+    total_iterations = mod_count * (max(size_range) + min(size_range)) * test_iterations
     total_digits = len(str(total_iterations))
     with open(f'temp/test.csv', 'w') as f:
         f.write('method,iteration,file_size,time\n')
@@ -58,7 +59,7 @@ if __name__ == '__main__':
 
                     # {current mode num}/{total mod num}.{current size}/{total size}.{current test num}/{total test num}
                     # prefix_str = str(modes.index(mode) + 1) + '/' + str(mod_count) + '.' + str(j) + '/' + str(size_range[-1]) + '.' + str(i + 1) + '/' + str(test_iterations)
-                    current_iteration = modes.index(mode) * len(size_range) * test_iterations + j * test_iterations + i + 1
+                    current_iteration = modes.index(mode) * len(size_range) * test_iterations + (j-1) * test_iterations + i + 1
                     
                     print(
                         f'{colorama.Fore.YELLOW}{current_iteration:{total_digits}d}/{total_iterations:{total_digits}d} Method: {mode}, File size: {j} MB, Test {i+1}{colorama.Style.RESET_ALL}')
@@ -67,6 +68,8 @@ if __name__ == '__main__':
                     start = time.time()
                     if mode == "ecb_ede":
                         cipher = cbk.DES3_ECB_EDE(key1, key2, key3)
+                    elif mode == "native_ede":
+                        cipher = cbk.DES3_NATIVE_EDE(key1, key2, key3)
                     elif mode == "inner_cbc_ede":
                         cipher = cbk.DES3_INNER_CBC_EDE(key1, key2, key3, iv)
                     elif mode == "outer_cbc_ede":
@@ -83,6 +86,8 @@ if __name__ == '__main__':
                     start = time.time()
                     if mode == "ecb_ede":
                         cipher = cbk.DES3_ECB_EDE(key1, key2, key3)
+                    elif mode == "native_ede":
+                        cipher = cbk.DES3_NATIVE_EDE(key1, key2, key3)
                     elif mode == "inner_cbc_ede":
                         cipher = cbk.DES3_INNER_CBC_EDE(key1, key2, key3, iv)
                     elif mode == "outer_cbc_ede":
