@@ -1,3 +1,7 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+# Python 3.12.6
+
 import matplotlib.pyplot as plt
 import pandas as pd
 import dsmltf
