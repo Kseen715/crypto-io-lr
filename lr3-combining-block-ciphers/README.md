@@ -36,4 +36,5 @@ In an external CBC, the coupling functions as if the three encryption steps were
 In the 3DES with pad mode, a string of random bits half a block long is appended to the text between the first and second encryptions and between the second and third encryptions. This ensures that the encryption blocks overlap.
 
 ## Result of benchmakrs
-![plot](https://github.com/user-attachments/assets/311a8778-fe19-4b0f-99da-e8e93da5a32f)
+![plot](https://github.com/user-attachments/assets/bef3ae9a-d5be-4407-acd8-13b44f515b33)
+
