@@ -9,13 +9,19 @@ The encryption of a plaintext block on two occasions with the same key, whether 
 ## Used techniques
 
 - 3DES ECB
+- native 3DES
 - 3DES Inner CBC
 - 3DES Outer CBC
 - 3DES with pad
 
+
 ### 3DES ECB
 
 Common implementations of 3DES. 
+
+### native 3DES
+
+Pycryptodome library implementation of 3DES. 
 
 ### 3DES Inner CBC
 
