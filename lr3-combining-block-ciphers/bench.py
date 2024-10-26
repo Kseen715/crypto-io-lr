@@ -26,9 +26,12 @@ if __name__ == '__main__':
         if not os.path.exists(f'temp/file_{i}.bin'):
             generate_fake_file(f'temp/file_{i}.bin', i * 1024 * 1024)
             print(
-                f'{colorama.Fore.GREEN}File temp/file_{i}.bin created{colorama.Style.RESET_ALL}')
+                f'{colorama.Fore.GREEN}File temp/file_{i}.bin '
+                + f'created{colorama.Style.RESET_ALL}')
 
-    # with every method from cbk.py, encrypt and decrypt every file, measure time and write it to a csv file. Compate file's hash. Run all test 3 times.
+    # with every method from cbk.py, encrypt and decrypt every file, measure
+    # time and write it to a csv file. Compate file's hash.
+    # Run all test 3 times.
 
     # generate keys
     key1, key2, key3 = cbk.generate_keys()
@@ -41,10 +44,11 @@ if __name__ == '__main__':
              "inner_cbc_ede",
              "outer_cbc_ede",
              "ecb_pad_ede"]
-    
+
     mod_count = len(modes)
 
-    total_iterations = mod_count * (max(size_range) + min(size_range)) * test_iterations
+    total_iterations = mod_count * \
+        (max(size_range) + min(size_range)) * test_iterations
     total_digits = len(str(total_iterations))
     with open(f'temp/test.csv', 'w') as f:
         f.write('method,iteration,file_size,time\n')
@@ -57,13 +61,25 @@ if __name__ == '__main__':
                     # encrypted_file = f'temp/encrypted_{j}.bin'
                     # decrypted_file = f'temp/decrypted_{j}.bin'
 
-                    # {current mode num}/{total mod num}.{current size}/{total size}.{current test num}/{total test num}
-                    # prefix_str = str(modes.index(mode) + 1) + '/' + str(mod_count) + '.' + str(j) + '/' + str(size_range[-1]) + '.' + str(i + 1) + '/' + str(test_iterations)
-                    current_iteration = modes.index(mode) * len(size_range) * test_iterations + (j-1) * test_iterations + i + 1
-                    
-                    print(
-                        f'{colorama.Fore.YELLOW}{current_iteration:{total_digits}d}/{total_iterations:{total_digits}d} Method: {mode}, File size: {j} MB, Test {i+1}{colorama.Style.RESET_ALL}')
+                    # {current mode num}/{total mod num}
+                    # .{current size}/{total size}
+                    # .{current test num}/{total test num}
+                    # prefix_str = str(modes.index(mode) + 1) + '/'
+                    # + str(mod_count) + '.' + str(j) + '/'
+                    # + str(size_range[-1]) + '.' + str(i + 1) + '/'
+                    # + str(test_iterations)
+                    current_iteration = modes.index(mode) \
+                        * len(size_range) * test_iterations + (j-1) \
+                        * test_iterations + i + 1
 
+                    print(
+                        f'{colorama.Fore.YELLOW}'
+                        + f'{current_iteration:{total_digits}d}/'
+                        + f'{total_iterations:{total_digits}d} '
+                        + f'Method: {mode}, '
+                        + f'File size: {j} MB, '
+                        + f'Test {i+1}{colorama.Style.RESET_ALL}'
+                    )
 
                     start = time.time()
                     if mode == "ecb_ede":
@@ -79,8 +95,6 @@ if __name__ == '__main__':
                     else:
                         raise ValueError(f"Invalid mode: {mode}")
                     ciphertext = cipher.encrypt(data)
-                    # cbk.encrypt_file(
-                    #     input_file, encrypted_file, mode, key1, key2, key3, iv)
                     end = time.time()
 
                     start = time.time()
@@ -97,10 +111,11 @@ if __name__ == '__main__':
                     else:
                         raise ValueError(f"Invalid mode: {mode}")
                     plaintext = cipher.decrypt(ciphertext)
-                    # cbk.decrypt_file(
-                    #     encrypted_file, decrypted_file, mode, key1, key2, key3, iv)
                     end = time.time()
 
                     f.write(f'{mode},{i+1},{j},{end-start}\n')
                     print(
-                        f'{colorama.Fore.GREEN}File encrypted and decrypted{colorama.Style.RESET_ALL}. {colorama.Fore.GREEN}Time: {end-start}{colorama.Style.RESET_ALL}')
+                        f'{colorama.Fore.GREEN}File encrypted and decrypted' 
+                        + f'{colorama.Style.RESET_ALL}. ' 
+                        + f'{colorama.Fore.GREEN}Time: ' 
+                        + f'{end-start}{colorama.Style.RESET_ALL}')

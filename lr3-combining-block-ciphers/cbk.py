@@ -429,17 +429,21 @@ def decrypt_file(input_file, output_file, mode, key1, key2, key3, iv=None):
 
 def main():
     parser = argparse.ArgumentParser(
-        description=f"{colorama.Fore.CYAN}3DES encryption with defferent modes of operation{colorama.Style.RESET_ALL}")
+        description=f"{colorama.Fore.CYAN}3DES encryption with defferent "
+        + f"modes of operation{colorama.Style.RESET_ALL}")
     parser.add_argument(
         "-t", "--test", action="store_true", help="Run the tests")
     parser.add_argument(
         "-y", "--yes", action="store_true", help="Skip the confirmation")
     # mode [key generation / encrypting / decrypting]
     parser.add_argument(
-        "mode", nargs='?', help="The mode of operation [keygen / encrypt / decrypt]")
+        "mode", nargs='?',
+        help="The mode of operation [keygen / encrypt / decrypt]")
     # encryption method [ecb_ede / inner_cbc_ede / outer_cbc_ede / ecb_pad_ede]
     parser.add_argument(
-        "method", nargs='?', help="The encryption method [ecb_ede / native_ede / inner_cbc_ede / outer_cbc_ede / ecb_pad_ede]")
+        "method", nargs='?',
+        help=f"The encryption method [ecb_ede / native_ede / inner_cbc_ede /" 
+        + " outer_cbc_ede / ecb_pad_ede]")
     # input file
     parser.add_argument("input", nargs='?', help="The input file")
     # output file

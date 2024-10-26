@@ -89,10 +89,16 @@ if __name__ == '__main__':
                    - method_data['time_mean'])[::plot_lim]],
             label=method,
             fmt='-o',
-            color=color[data['method'].unique().tolist().index(method)])
+            color=color[data['method'].unique().tolist().index(method)]
+        )
         method_data = data[data['method'] == method]
-        ax.plot(method_data['file_size'][::plot_lim], method_data['time_poly'][::plot_lim], label=f'{method} poly {method_data["poly"].iloc[0]}', linestyle='--',
-                color=color[data['method'].unique().tolist().index(method)])
+        ax.plot(
+            method_data['file_size'][::plot_lim],
+            method_data['time_poly'][::plot_lim],
+            label=f'{method} poly {method_data["poly"].iloc[0]}',
+            linestyle='--',
+            color=color[data['method'].unique().tolist().index(method)]
+        )
     ax.set_xlabel('File size (MB)')
     ax.set_ylabel('Time (ms)')
     ax.legend()
