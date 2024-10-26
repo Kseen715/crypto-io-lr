@@ -19,8 +19,10 @@ if __name__ == '__main__':
         print('Directory temp created')
 
     size_range = range(1, 102, 10)
-    test_iterations = 5
-
+    test_iterations = 3
+    step = (max(size_range) - min(size_range))/(len(size_range)-1)
+    print(f'Size range: {list(size_range)}')
+    print(f'Step: {step}')
     # generate files from 1 MB to 100 MB with 1 MB step
     for i in size_range:
         if not os.path.exists(f'temp/file_{i}.bin'):
@@ -48,8 +50,9 @@ if __name__ == '__main__':
     mod_count = len(modes)
 
     total_iterations = mod_count * \
-        (max(size_range) + min(size_range)) * test_iterations
-    total_digits = len(str(total_iterations))
+        (len(size_range)) * test_iterations
+    total_iterations = int(total_iterations)
+    total_digits = len(str(int(total_iterations)))
     with open(f'temp/test.csv', 'w') as f:
         f.write('method,iteration,file_size,time\n')
         for mode in modes:
@@ -69,8 +72,10 @@ if __name__ == '__main__':
                     # + str(size_range[-1]) + '.' + str(i + 1) + '/'
                     # + str(test_iterations)
                     current_iteration = modes.index(mode) \
-                        * len(size_range) * test_iterations + (j-1) \
+                        * (len(size_range)) \
+                        * test_iterations + (j/step) \
                         * test_iterations + i + 1
+                    current_iteration = int(current_iteration)
 
                     print(
                         f'{colorama.Fore.YELLOW}'
@@ -115,7 +120,7 @@ if __name__ == '__main__':
 
                     f.write(f'{mode},{i+1},{j},{end-start}\n')
                     print(
-                        f'{colorama.Fore.GREEN}File encrypted and decrypted' 
-                        + f'{colorama.Style.RESET_ALL}. ' 
-                        + f'{colorama.Fore.GREEN}Time: ' 
+                        f'{colorama.Fore.GREEN}File encrypted and decrypted'
+                        + f'{colorama.Style.RESET_ALL}. '
+                        + f'{colorama.Fore.GREEN}Time: '
                         + f'{end-start}{colorama.Style.RESET_ALL}')
