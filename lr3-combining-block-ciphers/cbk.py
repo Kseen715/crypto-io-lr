@@ -22,6 +22,15 @@ class DES3_ECB_EDE:
         self.key3 = key3
 
     def encrypt(self, data):
+        '''
+        Encrypt the data
+
+        Args:
+            data (bytes): The data to encrypt
+
+        Returns:
+            bytes: The encrypted data
+        '''
         data = pad(data, DES.block_size)
         cipher = DES.new(self.key1, DES.MODE_ECB)
         data = cipher.encrypt(data)
@@ -32,6 +41,15 @@ class DES3_ECB_EDE:
         return data
 
     def decrypt(self, data):
+        '''
+        Decrypt the data
+
+        Args:
+            data (bytes): The data to decrypt
+
+        Returns:
+            bytes: The decrypted data
+        '''
         cipher = DES.new(self.key3, DES.MODE_ECB)
         data = cipher.decrypt(data)
         cipher = DES.new(self.key2, DES.MODE_ECB)
@@ -51,12 +69,30 @@ class DES3_NATIVE_EDE:
             len(self.key)}"
 
     def encrypt(self, data):
+        '''
+        Encrypt the data
+
+        Args:
+            data (bytes): The data to encrypt
+
+        Returns:
+            bytes: The encrypted data
+        '''
         data = pad(data, DES3.block_size)
         cipher = DES3.new(self.key, DES3.MODE_ECB)
         data = cipher.encrypt(data)
         return data
 
     def decrypt(self, data):
+        '''
+        Decrypt the data
+
+        Args:
+            data (bytes): The data to decrypt
+
+        Returns:
+            bytes: The decrypted data
+        '''
         cipher = DES3.new(self.key, DES3.MODE_ECB)
         data = cipher.decrypt(data)
         data = unpad(data, DES3.block_size)
@@ -75,6 +111,15 @@ class DES3_INNER_CBC_EDE:
         self.iv = iv
 
     def encrypt(self, data):
+        '''
+        Encrypt the data
+
+        Args:
+            data (bytes): The data to encrypt
+
+        Returns:
+            bytes: The encrypted data
+        '''
         data = pad(data, DES.block_size)
         cipher = DES.new(self.key1, DES.MODE_CBC, self.iv)
         data = cipher.encrypt(data)
@@ -85,6 +130,15 @@ class DES3_INNER_CBC_EDE:
         return data
 
     def decrypt(self, data):
+        '''
+        Decrypt the data
+
+        Args:
+            data (bytes): The data to decrypt
+
+        Returns:
+            bytes: The decrypted data
+        '''
         cipher = DES.new(self.key3, DES.MODE_CBC, self.iv)
         data = cipher.decrypt(data)
         cipher = DES.new(self.key2, DES.MODE_CBC, self.iv)
@@ -107,12 +161,30 @@ class DES3_OUTER_CBC_EDE:
         self.iv = iv
 
     def encrypt(self, data):
+        '''
+        Encrypt the data
+
+        Args:
+            data (bytes): The data to encrypt
+
+        Returns:
+            bytes: The encrypted data
+        '''
         data = pad(data, DES.block_size)
         cipher_encrypt = DES3.new(self.key, DES3.MODE_CBC, self.iv)
         data = cipher_encrypt.encrypt(data)
         return data
 
     def decrypt(self, data):
+        '''
+        Decrypt the data
+
+        Args:
+            data (bytes): The data to decrypt
+
+        Returns:
+            bytes: The decrypted data
+        '''
         cipher_decrypt = DES3.new(self.key, DES3.MODE_CBC, self.iv)
         data = cipher_decrypt.decrypt(data)
         data = unpad(data, DES.block_size)
@@ -442,7 +514,7 @@ def main():
     # encryption method [ecb_ede / inner_cbc_ede / outer_cbc_ede / ecb_pad_ede]
     parser.add_argument(
         "method", nargs='?',
-        help=f"The encryption method [ecb_ede / native_ede / inner_cbc_ede /" 
+        help=f"The encryption method [ecb_ede / native_ede / inner_cbc_ede /"
         + " outer_cbc_ede / ecb_pad_ede]")
     # input file
     parser.add_argument("input", nargs='?', help="The input file")
