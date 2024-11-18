@@ -3,5 +3,7 @@ build
 temp
 *.wbk
 ~*
+cov.xml
+.coverage
 venv
 __pycache__
