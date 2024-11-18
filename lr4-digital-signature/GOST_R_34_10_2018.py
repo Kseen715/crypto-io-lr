@@ -328,9 +328,9 @@ def elgamal_ecc_verify(src_file, sign_file):
 
 # Seventh step
     if R == r:
-        print('[+] Signature is valid!')
+        return True
     else:
-        print('[-] Invalid signature!')
+        return False
 
 def main():
     if len(sys.argv) < 4:

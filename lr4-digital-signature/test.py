@@ -15,12 +15,6 @@ def test_file_sign_RSA_SHA256():
         # Ensure the temp directory exists
         os.makedirs('temp', exist_ok=True)
 
-        # Remove files if they exist
-        if os.path.exists(file_path):
-            os.remove(file_path)
-        if os.path.exists(signature_file_path):
-            os.remove(signature_file_path)
-
         # Create a file with random bytes
         with open(file_path, 'wb') as f:
             f.write(random.randbytes(1024))
@@ -46,19 +40,13 @@ def test_file_sign_RSA_SHA256_changed_data():
         # Ensure the temp directory exists
         os.makedirs('temp', exist_ok=True)
 
-        # Remove files if they exist
-        if os.path.exists(file_path):
-            os.remove(file_path)
-        if os.path.exists(signature_file_path):
-            os.remove(signature_file_path)
-
         # Create a file with random bytes
         with open(file_path, 'wb') as f:
             f.write(random.randbytes(1024))
 
         # Sign the file
         sign_file(file_path, signature_file_path, 'RSA-SHA256')
-        
+
         # Create a file with random bytes
         with open(file_path, 'wb') as f:
             f.write(random.randbytes(1024))
@@ -80,12 +68,6 @@ def test_file_sign_RSA_SHA512():
 
         # Ensure the temp directory exists
         os.makedirs('temp', exist_ok=True)
-
-        # Remove files if they exist
-        if os.path.exists(file_path):
-            os.remove(file_path)
-        if os.path.exists(signature_file_path):
-            os.remove(signature_file_path)
 
         # Create a file with random bytes
         with open(file_path, 'wb') as f:
@@ -111,12 +93,6 @@ def test_file_sign_RSA_SHA512_changed_data():
 
         # Ensure the temp directory exists
         os.makedirs('temp', exist_ok=True)
-
-        # Remove files if they exist
-        if os.path.exists(file_path):
-            os.remove(file_path)
-        if os.path.exists(signature_file_path):
-            os.remove(signature_file_path)
 
         # Create a file with random bytes
         with open(file_path, 'wb') as f:
@@ -147,12 +123,6 @@ def test_file_sign_DSA():
         # Ensure the temp directory exists
         os.makedirs('temp', exist_ok=True)
 
-        # Remove files if they exist
-        if os.path.exists(file_path):
-            os.remove(file_path)
-        if os.path.exists(signature_file_path):
-            os.remove(signature_file_path)
-
         # Create a file with random bytes
         with open(file_path, 'wb') as f:
             f.write(random.randbytes(1024))
@@ -177,12 +147,6 @@ def test_file_sign_DSA_changed_data():
 
         # Ensure the temp directory exists
         os.makedirs('temp', exist_ok=True)
-
-        # Remove files if they exist
-        if os.path.exists(file_path):
-            os.remove(file_path)
-        if os.path.exists(signature_file_path):
-            os.remove(signature_file_path)
 
         # Create a file with random bytes
         with open(file_path, 'wb') as f:
@@ -213,12 +177,6 @@ def test_file_sign_ECDSA():
         # Ensure the temp directory exists
         os.makedirs('temp', exist_ok=True)
 
-        # Remove files if they exist
-        if os.path.exists(file_path):
-            os.remove(file_path)
-        if os.path.exists(signature_file_path):
-            os.remove(signature_file_path)
-
         # Create a file with random bytes
         with open(file_path, 'wb') as f:
             f.write(random.randbytes(1024))
@@ -244,12 +202,6 @@ def test_file_sign_ECDSA_changed_data():
         # Ensure the temp directory exists
         os.makedirs('temp', exist_ok=True)
 
-        # Remove files if they exist
-        if os.path.exists(file_path):
-            os.remove(file_path)
-        if os.path.exists(signature_file_path):
-            os.remove(signature_file_path)
-
         # Create a file with random bytes
         with open(file_path, 'wb') as f:
             f.write(random.randbytes(1024))
@@ -263,6 +215,61 @@ def test_file_sign_ECDSA_changed_data():
 
         # Verify the file
         assert (verify_file(file_path, signature_file_path, 'ECDSA') == False)
+    finally:
+        # Cleanup
+        if os.path.exists(file_path):
+            os.remove(file_path)
+        if os.path.exists(signature_file_path):
+            os.remove(signature_file_path)
+
+
+def test_file_sign_GOST_34_10_2018():
+    try:
+        file_path = 'temp/test_file_sign_GOST_34_10_2018.txt'
+        signature_file_path = 'temp/test_file_sign_GOST_34_10_2018.sig'
+
+        # Ensure the temp directory exists
+        os.makedirs('temp', exist_ok=True)
+
+        # Create a file with random bytes
+        with open(file_path, 'wb') as f:
+            f.write(random.randbytes(1024))
+
+        # Sign the file
+        sign_file(file_path, signature_file_path, 'GOST 34.10-2018')
+
+        # Verify the file
+        assert verify_file(file_path, signature_file_path, 'GOST 34.10-2018')
+    finally:
+        # Cleanup
+        if os.path.exists(file_path):
+            os.remove(file_path)
+        if os.path.exists(signature_file_path):
+            os.remove(signature_file_path)
+
+
+def test_file_sign_GOST_34_10_2018_changed_data():
+    try:
+        file_path = 'temp/test_file_sign_GOST_34_10_2018_changed_data.txt'
+        signature_file_path = 'temp/test_file_sign_GOST_34_10_2018_changed_data.sig'
+
+        # Ensure the temp directory exists
+        os.makedirs('temp', exist_ok=True)
+
+        # Create a file with random bytes
+        with open(file_path, 'wb') as f:
+            f.write(random.randbytes(1024))
+
+        # Sign the file
+        sign_file(file_path, signature_file_path, 'GOST 34.10-2018')
+
+        # Create a file with random bytes
+        with open(file_path, 'wb') as f:
+            f.write(random.randbytes(1024))
+
+        # Verify the file
+        assert (verify_file(file_path, signature_file_path,
+                'GOST 34.10-2018') == False)
     finally:
         # Cleanup
         if os.path.exists(file_path):

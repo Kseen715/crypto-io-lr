@@ -8,15 +8,17 @@ import argparse
 import sys
 from pathlib import Path
 from typing import Optional
+
 from Crypto.Hash import SHA256, SHA512
 from Crypto.PublicKey import RSA
 from Crypto.Signature import pkcs1_15
 from Crypto.Signature import DSS
 from Crypto.PublicKey import DSA
 from Crypto.PublicKey import ECC
-
-
 import ksilorama
+
+
+import GOST_R_34_10_2018
 
 
 def sign_RSA_SHA256(data: bytes, key: RSA.RsaKey) -> bytes:
@@ -107,6 +109,8 @@ def sign_file(file: Path, signature_file: Path, alg: str) -> None:
             f.write(key_len.to_bytes(4, 'big'))
             f.write(key_pem.encode())
             f.write(signature)
+    elif alg == 'GOST 34.10-2018':
+        GOST_R_34_10_2018.elgamal_ecc_sign(file, signature_file)
 
 
 def verify_file(file: Path, signature_file: Path, alg: str) -> bool:
@@ -173,6 +177,8 @@ def verify_file(file: Path, signature_file: Path, alg: str) -> bool:
             print(ksilorama.Fore.RED + 'Signature is invalid' +
                   ksilorama.Style.RESET_ALL)
             return False
+    elif alg == 'GOST 34.10-2018':
+        return GOST_R_34_10_2018.elgamal_ecc_verify(file, signature_file)
 
 
 if __name__ == '__main__':

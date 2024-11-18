@@ -4,6 +4,6 @@ temp
 *.wbk
 ~*
 cov.xml
-.coverage
+.coverage*
 venv
 __pycache__
