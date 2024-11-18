@@ -452,7 +452,7 @@ def encrypt_file(input_file, output_file, mode, key1, key2, key3, iv=None):
         data = f.read()
     if mode == "ecb_ede":
         cipher = DES3_ECB_EDE(key1, key2, key3)
-    if mode == "native_ede":
+    elif mode == "native_ede":
         cipher = DES3_NATIVE_EDE(key1, key2, key3)
     elif mode == "inner_cbc_ede":
         cipher = DES3_INNER_CBC_EDE(key1, key2, key3, iv)
@@ -484,7 +484,7 @@ def decrypt_file(input_file, output_file, mode, key1, key2, key3, iv=None):
         data = f.read()
     if mode == "ecb_ede":
         cipher = DES3_ECB_EDE(key1, key2, key3)
-    if mode == "native_ede":
+    elif mode == "native_ede":
         cipher = DES3_NATIVE_EDE(key1, key2, key3)
     elif mode == "inner_cbc_ede":
         cipher = DES3_INNER_CBC_EDE(key1, key2, key3, iv)
