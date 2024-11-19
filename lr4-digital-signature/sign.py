@@ -20,6 +20,21 @@ import ksilorama
 
 import GOST_R_34_10_2018
 
+msg_valid_signature = \
+    '[SIGNATURE] ' \
+    + ksilorama.Fore.HEX('#22BB66') \
+    + ksilorama.Style.ITALIC \
+    + 'Signature is valid' \
+    + ksilorama.Style.RESET_ALL
+msg_invalid_signature = \
+    '[SIGNATURE] ' \
+    + ksilorama.Fore.RED \
+    + ksilorama.Style.BLINK \
+    + ksilorama.Style.BRIGHT \
+    + ksilorama.Style.INVERTED \
+    + 'Invalid signature' \
+    + ksilorama.Style.RESET_ALL
+
 
 def sign_RSA_SHA256(data: bytes, key: RSA.RsaKey) -> bytes:
     h = SHA256.new(data)
@@ -121,12 +136,8 @@ def verify_file(file: Path, signature_file: Path, alg: str) -> bool:
         with Path(file).open('rb') as f:
             data = f.read()
         if verify_RSA_SHA256(data, signature, public_key):
-            print(ksilorama.Fore.GREEN + 'Signature is valid' +
-                  ksilorama.Style.RESET_ALL)
             return True
         else:
-            print(ksilorama.Fore.RED + 'Signature is invalid' +
-                  ksilorama.Style.RESET_ALL)
             return False
     elif alg == 'RSA-SHA512':
         with Path(signature_file).open('rb') as f:
@@ -136,12 +147,8 @@ def verify_file(file: Path, signature_file: Path, alg: str) -> bool:
         with Path(file).open('rb') as f:
             data = f.read()
         if verify_RSA_SHA512(data, signature, key):
-            print(ksilorama.Fore.GREEN + 'Signature is valid' +
-                  ksilorama.Style.RESET_ALL)
             return True
         else:
-            print(ksilorama.Fore.RED + 'Signature is invalid' +
-                  ksilorama.Style.RESET_ALL)
             return False
     elif alg == 'DSA':
         with Path(signature_file).open('rb') as f:
@@ -151,12 +158,8 @@ def verify_file(file: Path, signature_file: Path, alg: str) -> bool:
         with Path(file).open('rb') as f:
             data = f.read()
         if verify_DSA(data, signature, key):
-            print(ksilorama.Fore.GREEN + 'Signature is valid' +
-                  ksilorama.Style.RESET_ALL)
             return True
         else:
-            print(ksilorama.Fore.RED + 'Signature is invalid' +
-                  ksilorama.Style.RESET_ALL)
             return False
     elif alg == 'ECDSA':
         with Path(signature_file).open('rb') as f:
@@ -169,29 +172,52 @@ def verify_file(file: Path, signature_file: Path, alg: str) -> bool:
         verifier = DSS.new(key, 'fips-186-3')
         try:
             verifier.verify(h, signature)
-            print(ksilorama.Fore.GREEN + 'Signature is valid' +
-                  ksilorama.Style.RESET_ALL)
             return True
         except (ValueError, TypeError):
-            print(ksilorama.Fore.RED + 'Signature is invalid' +
-                  ksilorama.Style.RESET_ALL)
             return False
     elif alg == 'GOST 34.10-2018':
         return GOST_R_34_10_2018.elgamal_ecc_verify(file, signature_file)
 
 
 if __name__ == '__main__':
-    pass
+    algs = ['RSA-SHA256', 'RSA-SHA512', 'DSA', 'ECDSA', 'GOST 34.10-2018']
 
-    # parser = argparse.ArgumentParser(description='Sign a file')
-    # parser.add_argument('file', type=Path, help='File to sign')
-    # parser.add_argument('key', type=Path, help='Key file')
-    # parser.add_argument('signature', type=Path, help='Signature file')
-    # parser.add_argument('--alg', type=str, default='sha256', help='Algorithm')
-    # args = parser.parse_args()
+    description = \
+        ksilorama.Fore.HEX('#EE9944') \
+        + ksilorama.Style.ITALIC \
+        + f'Sign or verify a file using a digital signature' \
+        + ksilorama.Style.RESET_ALL
+    parser = argparse.ArgumentParser(description=description)
+    parser.add_argument(
+        'command', choices=['sign', 'verify', 'keygen'],
+        help='Command to execute')
+    parser.add_argument('file', type=Path, help='File to sign', nargs='?')
+    parser.add_argument('signature', type=Path, help='Signature file')
+    # key is optional for verification
+    parser.add_argument('key', type=Path, help='Key file', nargs='?')
+    parser.add_argument(
+        '--alg', type=str,
+        choices=algs, required=True,
+        help='Algorithm to use')
+    args = parser.parse_args()
 
-    # try:
-    #     sign_file(args.file, args.key, args.signature, args.hash)
-    # except Exception as e:
-    #     print(e, file=sys.stderr)
-    #     sys.exit()
+    try:
+        if args.command == 'verify':
+            res = verify_file(args.file, args.signature, args.alg)
+            if res:
+                print(msg_valid_signature)
+            else:
+                print(msg_invalid_signature)
+        elif args.command == 'sign':
+            sign_file(args.file, args.signature, args.alg)
+            print(f'Signed {ksilorama.Style.UNDERLINE}{args.file}'
+                  + f'{ksilorama.Style.RESET_ALL} with '
+                  + f'{ksilorama.Style.UNDERLINE}{args.alg}'
+                  + f'{ksilorama.Style.RESET_ALL} algorithm. Signature saved '
+                  + f'to {ksilorama.Style.UNDERLINE}{args.signature}'
+                  + f'{ksilorama.Style.RESET_ALL}')
+        elif args.command == 'keygen':
+
+    except Exception as e:
+        print(e, file=sys.stderr)
+        sys.exit()
