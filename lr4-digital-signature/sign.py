@@ -76,13 +76,32 @@ def verify_DSA(data: bytes, signature: bytes, key: DSA.DsaKey) -> bool:
         return True
     except (ValueError, TypeError):
         return False
-
-
-def sign_file(file: Path, signature_file: Path, alg: str) -> None:
-    # keep key in the begining of sig file
+    
+def generate_key(key_path: Path, alg: str) -> None:
     if alg == 'RSA-SHA256':
         key = RSA.generate(2048)
+        with key_path.open('wb') as f:
+            f.write(key.export_key())
+    elif alg == 'RSA-SHA512':
+        key = RSA.generate(4096)
+        with key_path.open('wb') as f:
+            f.write(key.export_key())
+    elif alg == 'DSA':
+        key = DSA.generate(2048)
+        with key_path.open('wb') as f:
+            f.write(key.export_key())
+    elif alg == 'ECDSA':
+        key = ECC.generate(curve='P-256')
+        with key_path.open('wb') as f:
+            f.write(key.export_key(format='PEM').encode())
+    elif alg == 'GOST 34.10-2018':
+        print('GOST 34.10-2018 key generation is not supported')
 
+
+def sign_file(file: Path, signature_file: Path, key: Path, alg: str) -> None:
+    # keep key in the begining of sig file
+    if alg == 'RSA-SHA256':
+        key = RSA.import_key(key.read_bytes())
         with Path(file).open('rb') as f:
             data = f.read()
         signature = sign_RSA_SHA256(data, key)
@@ -92,7 +111,7 @@ def sign_file(file: Path, signature_file: Path, alg: str) -> None:
             f.write(key_data)
             f.write(signature)
     elif alg == 'RSA-SHA512':
-        key = RSA.generate(4096)
+        key = RSA.import_key(key.read_bytes())
         with Path(file).open('rb') as f:
             data = f.read()
         signature = sign_RSA_SHA512(data, key)
@@ -102,7 +121,7 @@ def sign_file(file: Path, signature_file: Path, alg: str) -> None:
             f.write(key_data)
             f.write(signature)
     elif alg == 'DSA':
-        key = DSA.generate(2048)
+        key = DSA.import_key(key.read_bytes())
         with Path(file).open('rb') as f:
             data = f.read()
         signature = sign_DSA(data, key)
@@ -112,7 +131,7 @@ def sign_file(file: Path, signature_file: Path, alg: str) -> None:
             f.write(key_data)
             f.write(signature)
     elif alg == 'ECDSA':
-        key = ECC.generate(curve='P-256')
+        key = ECC.import_key(key.read_bytes())
         with Path(file).open('rb') as f:
             data = f.read()
         h = SHA256.new(data)
@@ -196,7 +215,7 @@ if __name__ == '__main__':
     # key is optional for verification
     parser.add_argument('key', type=Path, help='Key file', nargs='?')
     parser.add_argument(
-        '--alg', type=str,
+        '-a', '--alg', type=str,
         choices=algs, required=True,
         help='Algorithm to use')
     args = parser.parse_args()
@@ -209,7 +228,7 @@ if __name__ == '__main__':
             else:
                 print(msg_invalid_signature)
         elif args.command == 'sign':
-            sign_file(args.file, args.signature, args.alg)
+            sign_file(args.file, args.signature, args.key, args.alg)
             print(f'Signed {ksilorama.Style.UNDERLINE}{args.file}'
                   + f'{ksilorama.Style.RESET_ALL} with '
                   + f'{ksilorama.Style.UNDERLINE}{args.alg}'
@@ -217,6 +236,11 @@ if __name__ == '__main__':
                   + f'to {ksilorama.Style.UNDERLINE}{args.signature}'
                   + f'{ksilorama.Style.RESET_ALL}')
         elif args.command == 'keygen':
+            generate_key(args.signature, args.alg)
+            print(f'Generated key for {ksilorama.Style.UNDERLINE}{args.alg}'
+                  + f'{ksilorama.Style.RESET_ALL} algorithm. Key saved to '
+                  + f'{ksilorama.Style.UNDERLINE}{args.signature}'
+                  + f'{ksilorama.Style.RESET_ALL}')
 
     except Exception as e:
         print(e, file=sys.stderr)
