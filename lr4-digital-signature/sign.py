@@ -72,9 +72,9 @@ def sign_file(file: Path, signature_file: Path, alg: str) -> None:
             data = f.read()
         signature = sign_RSA_SHA256(data, key)
         with Path(signature_file).open('wb') as f:
-            key_len = len(key.export_key())
-            f.write(key_len.to_bytes(4, 'big'))
-            f.write(key.export_key())
+            key_data = key.publickey().export_key()
+            f.write(len(key_data).to_bytes(4, 'big'))
+            f.write(key_data)
             f.write(signature)
     elif alg == 'RSA-SHA512':
         key = RSA.generate(4096)
@@ -82,9 +82,9 @@ def sign_file(file: Path, signature_file: Path, alg: str) -> None:
             data = f.read()
         signature = sign_RSA_SHA512(data, key)
         with Path(signature_file).open('wb') as f:
-            key_len = len(key.export_key())
-            f.write(key_len.to_bytes(4, 'big'))
-            f.write(key.export_key())
+            key_data = key.publickey().export_key()
+            f.write(len(key_data).to_bytes(4, 'big'))
+            f.write(key_data)
             f.write(signature)
     elif alg == 'DSA':
         key = DSA.generate(2048)
@@ -92,9 +92,9 @@ def sign_file(file: Path, signature_file: Path, alg: str) -> None:
             data = f.read()
         signature = sign_DSA(data, key)
         with Path(signature_file).open('wb') as f:
-            key_len = len(key.export_key())
-            f.write(key_len.to_bytes(4, 'big'))
-            f.write(key.export_key())
+            key_data = key.publickey().export_key()
+            f.write(len(key_data).to_bytes(4, 'big'))
+            f.write(key_data)
             f.write(signature)
     elif alg == 'ECDSA':
         key = ECC.generate(curve='P-256')
@@ -104,10 +104,9 @@ def sign_file(file: Path, signature_file: Path, alg: str) -> None:
         signer = DSS.new(key, 'fips-186-3')
         signature = signer.sign(h)
         with Path(signature_file).open('wb') as f:
-            key_pem = key.export_key(format='PEM')
-            key_len = len(key_pem)
-            f.write(key_len.to_bytes(4, 'big'))
-            f.write(key_pem.encode())
+            key_data = key.public_key().export_key(format='PEM')
+            f.write(len(key_data).to_bytes(4, 'big'))
+            f.write(key_data.encode())
             f.write(signature)
     elif alg == 'GOST 34.10-2018':
         GOST_R_34_10_2018.elgamal_ecc_sign(file, signature_file)
@@ -117,11 +116,11 @@ def verify_file(file: Path, signature_file: Path, alg: str) -> bool:
     if alg == 'RSA-SHA256':
         with Path(signature_file).open('rb') as f:
             key_len = int.from_bytes(f.read(4), 'big')
-            key = RSA.import_key(f.read(key_len))
+            public_key = RSA.import_key(f.read(key_len))
             signature = f.read()
         with Path(file).open('rb') as f:
             data = f.read()
-        if verify_RSA_SHA256(data, signature, key):
+        if verify_RSA_SHA256(data, signature, public_key):
             print(ksilorama.Fore.GREEN + 'Signature is valid' +
                   ksilorama.Style.RESET_ALL)
             return True
