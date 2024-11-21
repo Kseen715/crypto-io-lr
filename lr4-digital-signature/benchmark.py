@@ -22,10 +22,11 @@ RST = ksilorama.Style.RESET_ALL
 wo_keygen = ['GOST 34.10-2018']
 times = 1000
 
-def test_case(alg, sizes):
+
+def test_case(alg, in_sizes):
     try:
         for i in range(times):
-            sizes = list(sizes)
+            sizes = list(in_sizes)
             # grab PID
             pid = os.getpid()
             # get time in ns
@@ -36,9 +37,21 @@ def test_case(alg, sizes):
                 size = random.choice(sizes)
                 sizes.remove(size)
                 try:
-                    file = Path(f'temp/file_{size}_{hash}.txt')
-                    signature_file = Path(f'temp/signature_{size}_{hash}.sig')
-                    key_file = Path(f'temp/key_{size}_{hash}.key')
+                    folder_txt = Path('temp/txt')
+                    folder_sig = Path('temp/sig')
+                    folder_key = Path('temp/key')
+                    file = Path(f'{folder_txt}/file_{size}_{hash}.txt')
+                    signature_file = Path(
+                        f'{folder_sig}/signature_{size}_{hash}.sig')
+                    key_file = Path(f'{folder_key}/key_{size}_{hash}.key')
+
+                    if not os.path.exists(folder_txt):
+                        os.makedirs(folder_txt)
+                    if not os.path.exists(folder_sig):
+                        os.makedirs(folder_sig)
+                    if not os.path.exists(folder_key):
+                        os.makedirs(folder_key)
+
                     with file.open('wb') as f:
                         f.write(os.urandom(int(size * 1024 * 1024)))
                     if alg not in wo_keygen:
@@ -54,13 +67,13 @@ def test_case(alg, sizes):
                         number=1)
                     with open('temp/benchmark.csv', 'a') as res_file:
                         res_file.write(f'"{alg}",{size},{keygen_time},{
-                                    sign_time},{verify_time}\n')
+                            sign_time},{verify_time}\n')
                     print(f'[{CYN}BENCH{RST}] '
-                        + f'{CLR}Alg{RST}: {alg}, '
-                        + f'{size} MB, '
-                        + f'{CLR}Key{RST}: {float(keygen_time):.6f}s, '
-                        + f'{CLR}Sign{RST}: {sign_time:.6f}s, '
-                        + f'{CLR}Verify{RST}: {verify_time:.6f}s', end='\n')
+                          + f'{CLR}Alg{RST}: {alg}, '
+                          + f'{size} MB, '
+                          + f'{CLR}Key{RST}: {float(keygen_time):.6f}s, '
+                          + f'{CLR}Sign{RST}: {sign_time:.6f}s, '
+                          + f'{CLR}Verify{RST}: {verify_time:.6f}s', end='\n')
                 finally:
                     if os.path.exists(file):
                         os.remove(file)
@@ -75,6 +88,15 @@ def test_case(alg, sizes):
         print(f'[{CYN}BENCH{RST}] {CLR}Error{RST}: {e}', end='\n')
 
 
+algs = [
+    # 'RSA-SHA256',
+    'RSA-SHA512',
+    # 'DSA',
+    # 'ECDSA',
+    # 'GOST 34.10-2018',
+]
+
+
 def benchmark():
     sizes = np.arange(0.5, 8 + 0.1, 0.5)
 
@@ -86,7 +108,7 @@ def benchmark():
 
     try:
         # use multiprocessing to run tests in parallel
-        with multiprocessing.Pool(processes=24) as pool:
+        with multiprocessing.Pool(processes=12) as pool:
             pool.starmap(test_case, [(alg, sizes)
                          for alg in algs])
     except KeyboardInterrupt:
@@ -94,28 +116,48 @@ def benchmark():
         exit(1)
 
 
+def remove_outliers(data: pd.DataFrame, m=2):
+    """
+    Remove outliers from data
+
+    :param data: data to remove outliers from
+    :param m: number of standard deviations to consider as outlier
+    :return: data without outliers
+    """
+    return data[abs(data - data.mean()) < m * data.std()]
+
+
+color = [
+    '#e41a1c',
+    '#377eb8',
+    '#f781bf',
+    '#dede00',
+    '#4daf4a',
+    '#ff7f00',
+    '#a65628',
+    '#984ea3',
+    '#999999',
+]
+
+
 def plot():
     #     alg, size, keygen_time, sign_time, verify_time
-    # "RSA-SHA256",0.5,0.372974099998828,0.08335640002042055,0.01683709997450933
-    # "RSA-SHA256",1.0,1.7574757999973372,0.08682359999511391,0.02053219999652356
-    # "RSA-SHA256",1.5,1.2757879000273533,0.08962049998808652,0.024799599952530116
-    # "RSA-SHA256",2.0,2.8304337000008672,0.09812120004789904,0.026621000026352704
-    # "RSA-SHA512",0.5,4.2523813000298105,0.330793300003279,0.017123999947216362
-    # read data from csv
-
     time_names_line_plot = ['sign_time', 'verify_time']
     time_names_bar_plot = ['keygen_time']
 
-    df = pd.read_csv('temp/benchmark.csv')
     for time_name in time_names_line_plot:
-        # other_time = (time_names_line_plot.copy() + time_names_bar_plot.copy())
-        # other_time.remove(time_name)
+        df = pd.read_csv('temp/benchmark.csv')
+        other_time = (time_names_line_plot.copy() + time_names_bar_plot.copy())
+        other_time.remove(time_name)
 
-        # # Drop other time columns
-        # df = df.drop(columns=other_time)
+        # Drop other time columns
+        df = df.drop(columns=other_time)
 
         # convert time from s to ms
         df[time_name] = df[time_name] * 1000
+
+        # remove outliers
+        df = df.groupby(['alg', 'size']).apply(remove_outliers, m=0.5)
 
         # calculate average time for every alg for every size by iteration
         means = df.groupby(['alg', 'size']).mean()
@@ -129,10 +171,6 @@ def plot():
         mins = mins.reset_index()
         maxs = maxs.reset_index()
 
-        # print(means)
-        # print(mins)
-        # print(maxs)
-
         time_name_max = time_name + '_max'
         time_name_min = time_name + '_min'
         time_name_mean = time_name + '_mean'
@@ -143,9 +181,7 @@ def plot():
         data = pd.merge(data, maxs, on=['alg', 'size'])
         data = data.rename(columns={time_name: time_name_max})
 
-        # calculate linear regression
-        # for every alg
-
+        # calculate linear regression for every alg
         def gen_poly_data(x, P):
             return [sum([P[i] * x ** i for i in range(len(P))]) for x in x]
 
@@ -170,16 +206,11 @@ def plot():
             x = alg_data['size']
             y = alg_data[time_name_mean]
 
-            # Add a small value to avoid division by zero
-            y = y.apply(lambda val: val + 0.000001 if val == 0 else val)
-
             m = dsmltf.approx_poly(y.tolist(), x.tolist(), 1)
             data.loc[data['alg'] == alg, 'poly'] \
                 = gen_poly_str(m)
             data.loc[data['alg'] == alg, 'time_poly'] \
                 = gen_poly_data(x, m)
-
-        color = ['#e41a1c', '#377eb8', '#f781bf', '#dede00', '#4daf4a']
 
         print(data)
 
@@ -216,8 +247,8 @@ def plot():
         # plt.show()
         plt.savefig(f'temp/plt_{time_name}.png')
 
-    df = pd.read_csv('temp/benchmark.csv')
     for time_name in time_names_bar_plot:
+        df = pd.read_csv('temp/benchmark.csv')
         # Drop size column
         df = df.drop(columns=['size'])
 
@@ -232,6 +263,9 @@ def plot():
 
         # convert time from s to ms
         df[time_name] = df[time_name] * 1000
+
+        # remove outliers
+        df = df.groupby('alg').apply(remove_outliers, m=0.5)
 
         # calculate average time for every alg for every size by iteration
         means = df.groupby(['alg']).mean()
@@ -255,8 +289,6 @@ def plot():
         data = data.rename(columns={time_name: time_name_max})
 
         print(data)
-
-        color = ['#e41a1c', '#377eb8', '#f781bf', '#dede00', '#4daf4a']
 
         # plot bar plot with error bars
         fig, ax = plt.subplots(figsize=(10, 6))
