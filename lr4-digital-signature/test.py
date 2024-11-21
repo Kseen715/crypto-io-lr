@@ -1,6 +1,8 @@
 # pytest
 import random
 import os
+import io
+import sys
 
 import pytest
 
@@ -324,3 +326,39 @@ def test_file_sign_GOST_34_10_2018_changed_data():
             os.remove(file_path)
         if os.path.exists(signature_file_path):
             os.remove(signature_file_path)
+
+
+def test_file_sign_GOST_34_10_2018_key_not_supported_msg():
+    try:
+        file_path = 'temp/test_file_sign_GOST_34_10_2018_key_not_supported_msg.txt'
+        key_file_path = 'temp/test_file_sign_GOST_34_10_2018_key_not_supported_msg.key'
+
+        # Ensure the temp directory exists
+        os.makedirs('temp', exist_ok=True)
+
+        # Create a file with random bytes
+        with open(file_path, 'wb') as f:
+            f.write(random.randbytes(1024))
+
+        # Create a StringIO object to capture the output
+        captured_output = io.StringIO()
+
+        # Redirect stdout to the StringIO object
+        sys.stdout = captured_output
+
+        # Generate a key
+        generate_key(key_file_path, 'GOST 34.10-2018')
+
+        # Reset stdout to its original value
+        sys.stdout = sys.__stdout__
+
+        # Get the captured output
+        output = captured_output.getvalue()
+
+        # Verify the output
+        assert output == 'GOST 34.10-2018 key generation is not supported\n'
+    finally:
+        # Cleanup
+        if os.path.exists(file_path):
+            os.remove(file_path)
+

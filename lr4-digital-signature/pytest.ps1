@@ -1,1 +1,1 @@
-pytest --verbose -n 10 --cov --cov-report xml:cov.xml $args
+pytest --verbose -n 8 --cov --cov-report xml:cov.xml $args
