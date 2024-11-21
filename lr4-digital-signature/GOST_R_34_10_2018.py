@@ -1,4 +1,5 @@
 # ==============================================================================
+# 
 # MIT License
 # 
 # Copyright (c) 2020 abulyaev
@@ -21,6 +22,7 @@
 # LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
+# 
 # ==============================================================================
 
 import sys
@@ -149,15 +151,15 @@ def ProcessParameter():
     q = q
     d = prv_unmarshal(os.urandom(64)) # Private key
     Q = multiply(point, d, curve.a, p) # Public key
-    print('[+] a = ', hex(curve.a))
-    print('[+] b = ', hex(curve.b))
+    # print('[+] a = ', hex(curve.a))
+    # print('[+] b = ', hex(curve.b))
     # print('[+] x = ', hex(point.x))
     # print('[+] y = ', hex(point.y))
-    print('[+] p = ', hex(p))
-    print('[+] r = ', hex(q))
+    # print('[+] p = ', hex(p))
+    # print('[+] r = ', hex(q))
     # print('[+] d = ', hex(d))
-    print('[+] P.x = ', hex(Q.x))
-    print('[+] P.y = ', hex(Q.y))
+    # print('[+] P.x = ', hex(Q.x))
+    # print('[+] P.y = ', hex(Q.y))
     return p, q, curve, point, d, Q
 
 # ASN.1
@@ -239,7 +241,7 @@ def elgamal_ecc_sign(src_file, sign_file):
 # Second step
     alfa = int.from_bytes(dgst, byteorder='big')
     e = alfa % q
-    print('[+] e = ', hex(e))
+    # print('[+] e = ', hex(e))
     if e == 0:
         e = 1
     k = 0
@@ -267,7 +269,7 @@ def elgamal_ecc_sign(src_file, sign_file):
     encoded_bytes = encode_signature(Q, p, curve, point, q, r, s, ksi)
     with open(sign_file, mode='wb') as file:
         file.write(encoded_bytes)
-    print('[+] File successfully signed!')
+    # print('[+] File successfully signed!')
 
 # Check file sign using El-Gamal
 def elgamal_ecc_verify(src_file, sign_file):
@@ -293,15 +295,15 @@ def elgamal_ecc_verify(src_file, sign_file):
     r = int(r)
     s = int(s)
 
-    print('[+] a = ', hex(a))
-    print('[+] x = ', hex(Px))
-    print('[+] y = ', hex(Py))
-    print('[+] p = ', hex(p))
-    print('[+] r = ', hex(q))
-    print('[+] P.x = ', hex(Qx))
-    print('[+] P.y = ', hex(Qy))
-    if r <= 0 or r >= q or s <= 0 or s >= q:
-        print('[-] Invalid signature! r <= 0 || r >= q || s <= 0 || s >= q ! ')
+    # print('[+] a = ', hex(a))
+    # print('[+] x = ', hex(Px))
+    # print('[+] y = ', hex(Py))
+    # print('[+] p = ', hex(p))
+    # print('[+] r = ', hex(q))
+    # print('[+] P.x = ', hex(Qx))
+    # print('[+] P.y = ', hex(Qy))
+    # if r <= 0 or r >= q or s <= 0 or s >= q:
+    #     print('[-] Invalid signature! r <= 0 || r >= q || s <= 0 || s >= q ! ')
 
     with open(src_file, mode='rb') as file:
         data = file.read()
@@ -311,7 +313,7 @@ def elgamal_ecc_verify(src_file, sign_file):
 # Third step
     alfa = int.from_bytes(dgst, byteorder='big')
     e = alfa % q
-    print('[+] e = ', hex(e))
+    # print('[+] e = ', hex(e))
     if e == 0:
         e = 1
 # Fourth step

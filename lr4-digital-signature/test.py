@@ -4,8 +4,6 @@ import os
 import io
 import sys
 
-import pytest
-
 from sign import *
 
 
@@ -361,4 +359,3 @@ def test_file_sign_GOST_34_10_2018_key_not_supported_msg():
         # Cleanup
         if os.path.exists(file_path):
             os.remove(file_path)
-

@@ -10,11 +10,8 @@ from pathlib import Path
 from typing import Optional
 
 from Crypto.Hash import SHA256, SHA512
-from Crypto.PublicKey import RSA
-from Crypto.Signature import pkcs1_15
-from Crypto.Signature import DSS
-from Crypto.PublicKey import DSA
-from Crypto.PublicKey import ECC
+from Crypto.PublicKey import RSA, DSA, ECC
+from Crypto.Signature import pkcs1_15, DSS
 import ksilorama
 
 
@@ -197,9 +194,9 @@ def verify_file(file: Path, signature_file: Path, alg: str) -> bool:
     elif alg == 'GOST 34.10-2018':
         return GOST_R_34_10_2018.elgamal_ecc_verify(file, signature_file)
 
+algs = ['RSA-SHA256', 'RSA-SHA512', 'DSA', 'ECDSA', 'GOST 34.10-2018']
 
 if __name__ == '__main__':
-    algs = ['RSA-SHA256', 'RSA-SHA512', 'DSA', 'ECDSA', 'GOST 34.10-2018']
 
     description = \
         ksilorama.Fore.HEX('#EE9944') \
