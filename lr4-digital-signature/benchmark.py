@@ -11,7 +11,6 @@ import random
 import matplotlib.pyplot as plt
 import pandas as pd
 import numpy as np
-import dsmltf
 
 CYN = ksilorama.Fore.CYAN
 CLR = ksilorama.Fore.HEX('#FF6677') \
@@ -116,70 +115,166 @@ def benchmark():
         exit(1)
 
 
-def remove_outliers(data: pd.DataFrame, m=2):
-    """
-    Remove outliers from data
+class StatPlotter():
+    color = [
+        '#e41a1c',
+        '#377eb8',
+        '#f781bf',
+        '#dede00',
+        '#4daf4a',
+        '#ff7f00',
+        '#a65628',
+        '#984ea3',
+        '#999999',
+    ]
 
-    :param data: data to remove outliers from
-    :param m: number of standard deviations to consider as outlier
-    :return: data without outliers
-    """
-    return data[abs(data - data.mean()) < m * data.std()]
+    @staticmethod
+    def _remove_outliers(data: pd.DataFrame, m=2):
+        """
+        Remove outliers from data
 
+        :param data: data to remove outliers from
+        :param m: number of standard deviations to consider as outlier
+        :return: data without outliers
+        """
+        return data[abs(data - data.mean()) < m * data.std()]
 
-color = [
-    '#e41a1c',
-    '#377eb8',
-    '#f781bf',
-    '#dede00',
-    '#4daf4a',
-    '#ff7f00',
-    '#a65628',
-    '#984ea3',
-    '#999999',
-]
+    @staticmethod
+    def _dot(v, w):
+        """
+        Скалярное произведение векторов
 
+        Parameters
+        ----------
+            v (list): Вектор
+            w (list): Вектор
 
-def plot():
-    #     alg, size, keygen_time, sign_time, verify_time
-    time_names_line_plot = ['sign_time', 'verify_time']
-    time_names_bar_plot = ['keygen_time']
+        Returns
+        -------
+            float: Скалярное произведение векторов
+        """
+        if type(v) != list:
+            raise TypeError("v should be a list, not " + str(type(v)) + ".")
+        if type(w) != list:
+            raise TypeError("w should be a list, not " + str(type(w)) + ".")
+        if len(v) != len(w):
+            raise ValueError("vectors should be the same length "
+                             "(v: " + str(len(v)) + ", w: " + str(len(w)) + ").")
+        if len(v) == 0 or len(w) == 0:
+            raise ValueError("vectors should be non-empty.")
+        if type(v[0]) != int and type(v[0]) != float:
+            raise TypeError("v should contain numbers, "
+                            "not " + str(type(v[0])) + ".")
+        if type(w[0]) != int and type(w[0]) != float:
+            raise TypeError("w should contain numbers, "
+                            "not " + str(type(w[0])) + ".")
+        return sum(v_i * w_i for v_i, w_i in zip(v, w))
 
-    for time_name in time_names_line_plot:
-        df = pd.read_csv('temp/benchmark.csv')
-        other_time = (time_names_line_plot.copy() + time_names_bar_plot.copy())
-        other_time.remove(time_name)
+    @staticmethod
+    def _gauss_slae(A, b):
+        """
+        Метод Гаусса решения СЛАУ
 
-        # Drop other time columns
-        df = df.drop(columns=other_time)
+        Parameters
+        ----------
+            A (list of list): Матрица коэффициентов
+            b (list): Свободные члены
 
-        # convert time from s to ms
-        df[time_name] = df[time_name] * 1000
+        Returns
+        -------
+            list: Решение
+        """
 
+        n = len(b)  # вычисляем порядок системы
+        # строим расширенную матрицу системы
+        G = [ai+[bi] for ai, bi in zip(A, b)]
+        # Прямой проход
+        for i in range(n):
+            for j in range(i, n):
+                G[j] = list(map(lambda x: x/G[j][i], G[j]))
+                if j > i:
+                    G[j] = [g - u for g, u in zip(G[j], G[i])]
+        # Обратный проход
+        x = [0]*n      # инициируем список, который потом станет решением
+        for i in range(n-1, -1, -1):
+            x[i] = G[i][-1]-StatPlotter._dot(x, G[i][:-1])
+        return x
+
+    @staticmethod
+    def _approx_poly(x, t, r):
+        """
+        Аппроксимация полиномом
+
+        Parameters
+        ----------
+            x (list): Список чисел
+            t (list): Список чисел, range(1, len(x)+1)
+            r (int): Степень полинома
+
+        Returns
+        -------
+            list: Параметры полинома
+        """
+        M = [[] for _ in range(r+1)]
+        b = []
+        for l in range(r+1):
+            for q in range(r+1):
+                M[l].append(sum(list(map(lambda z: z**(l+q), t))))
+            b.append(sum(xi*ti**l for xi, ti in zip(x, t)))
+        a = StatPlotter._gauss_slae(M, b)
+        return a
+
+    @staticmethod
+    def plot_lines(
+            df: pd.DataFrame,
+            xcolumn: str,
+            ycolumn: str,
+            column_with_line_name: str,
+            groupby: list,
+            title: str = 'Title',
+            xlabel: str = 'X axis',
+            ylabel: str = 'Y asix',
+            m: float = 1e9999,
+            output_folder: str = 'temp'
+    ):
+        """
+        Plot line plot with error bars
+
+        :param df: data to plot 
+        :param xcolumn: x axis column
+        :param ycolumn: y axis column
+        :param column_with_line_name: column with line name (e.g. 'alg')
+        :param groupby: columns to group by (e.g. ['alg', 'size'])
+        :param title: plot title
+        :param xlabel: x axis label
+        :param ylabel: y axis label
+        :param m: number of standard deviations to consider as outlier 
+        (default: 1e9999)
+        :param output_folder: output folder for plot (default: 'temp')
+        """
         # remove outliers
-        df = df.groupby(['alg', 'size']).apply(remove_outliers, m=0.5)
+        df = df.groupby(groupby).apply(StatPlotter._remove_outliers, m)
 
         # calculate average time for every alg for every size by iteration
-        means = df.groupby(['alg', 'size']).mean()
+        means = df.groupby(groupby).mean()
 
         # calculate yerr for every alg
-        mins = df.groupby(['alg', 'size']).min()
-        maxs = df.groupby(['alg', 'size']).max()
+        mins = df.groupby(groupby).min()
+        maxs = df.groupby(groupby).max()
 
         # combine data
         means = means.reset_index()
         mins = mins.reset_index()
         maxs = maxs.reset_index()
 
-        time_name_max = time_name + '_max'
-        time_name_min = time_name + '_min'
-        time_name_mean = time_name + '_mean'
+        column_max = ycolumn + '_max'
+        column_min = ycolumn + '_min'
+        column_mean = ycolumn + '_mean'
 
-        data = pd.merge(means, mins, on=[
-                        'alg', 'size'], suffixes=('_mean', '_min'))
+        data = pd.merge(means, mins, on=groupby, suffixes=('_mean', '_min'))
 
-        data = pd.merge(data, maxs, on=['alg', 'size'])
-        data = data.rename(columns={time_name: time_name_max})
+        data = pd.merge(data, maxs, on=groupby)
+        data = data.rename(columns={ycolumn: column_max})
 
         # calculate linear regression for every alg
         def gen_poly_data(x, P):
@@ -201,15 +296,15 @@ def plot():
             return ''.join(filter(None, terms)) \
                 + (f'{P[0]:+.1f}' if P[0] != 0 else '')
 
-        for alg in data['alg'].unique():
-            alg_data = data[data['alg'] == alg]
+        for alg in data[column_with_line_name].unique():
+            alg_data = data[data[column_with_line_name] == alg]
             x = alg_data['size']
-            y = alg_data[time_name_mean]
+            y = alg_data[column_mean]
 
-            m = dsmltf.approx_poly(y.tolist(), x.tolist(), 1)
-            data.loc[data['alg'] == alg, 'poly'] \
+            m = StatPlotter._approx_poly(y.tolist(), x.tolist(), 1)
+            data.loc[data[column_with_line_name] == alg, 'poly'] \
                 = gen_poly_str(m)
-            data.loc[data['alg'] == alg, 'time_poly'] \
+            data.loc[data[column_with_line_name] == alg, 'poly_data'] \
                 = gen_poly_data(x, m)
 
         print(data)
@@ -217,35 +312,138 @@ def plot():
         percent_to_plot = 100
         plot_lim = int(100 / percent_to_plot)
         fig, ax = plt.subplots(figsize=(10, 6))
-        for alg in data['alg'].unique():
-            alg_data = data[data['alg'] == alg]
+        for alg in data[column_with_line_name].unique():
+            alg_data = data[data[column_with_line_name] == alg]
             ax.errorbar(
-                alg_data['size'][::plot_lim],
-                alg_data[time_name_mean][::plot_lim],
-                yerr=[(alg_data[time_name_mean]
-                       - alg_data[time_name_min])[::plot_lim],
-                      (alg_data[time_name_max]
-                       - alg_data[time_name_mean])[::plot_lim]],
+                alg_data[xcolumn][::plot_lim],
+                alg_data[column_mean][::plot_lim],
+                yerr=[(alg_data[column_mean]
+                       - alg_data[column_min])[::plot_lim],
+                      (alg_data[column_max]
+                       - alg_data[column_mean])[::plot_lim]],
                 label=alg,
                 fmt='-o',
-                color=color[data['alg'].unique().tolist().index(alg)]
+                color=StatPlotter.color[data[column_with_line_name].unique(
+                ).tolist().index(alg)]
             )
-            alg_data = data[data['alg'] == alg]
+            alg_data = data[data[column_with_line_name] == alg]
             ax.plot(
-                alg_data['size'][::plot_lim],
-                alg_data['time_poly'][::plot_lim],
+                alg_data[xcolumn][::plot_lim],
+                alg_data['poly_data'][::plot_lim],
                 label=f'{alg} poly {alg_data["poly"].iloc[0]}',
                 linestyle='--',
-                color=color[data['alg'].unique().tolist().index(alg)]
+                color=StatPlotter.color[data[column_with_line_name].unique(
+                ).tolist().index(alg)]
             )
-        ax.set_xlabel('File size (MB)')
-        ax.set_ylabel('Time (ms)')
+        ax.set_xlabel(xlabel)
+        ax.set_ylabel(ylabel)
         ax.legend()
-        # add title
-        plt.title('Time of signing and verifying with different algorithms')
+        plt.title(title)
         plt.tight_layout()
-        # plt.show()
-        plt.savefig(f'temp/plt_{time_name}.png')
+        plt.savefig(f'{output_folder}/plt_{ycolumn}.png')
+
+    @staticmethod
+    def plot_bars(
+            df: pd.DataFrame,
+            xcolumn: str,
+            ycolumn: str,
+            column_with_line_name: str,
+            groupby: list,
+            title: str = 'Title',
+            xlabel: str = 'X axis',
+            ylabel: str = 'Y asix',
+            m: float = 1e9999,
+            output_folder: str = 'temp'
+    ):
+        """
+        Plot bar plot with error bars
+
+        :param df: data to plot
+        :param xcolumn: x axis column
+        :param ycolumn: y axis column
+        :param column_with_line_name: column with line name (e.g. 'alg')
+        :param groupby: columns to group by (e.g. ['alg', 'size'])
+        :param title: plot title
+        :param xlabel: x axis label
+        :param ylabel: y axis label
+        :param m: number of standard deviations to consider as outlier
+        (default: 1e9999)
+        :param output_folder: output folder for plot (default: 'temp')
+        """
+        # remove outliers
+        df = df.groupby(groupby).apply(StatPlotter._remove_outliers, m)
+
+        # calculate average time for every alg for every size by iteration
+        means = df.groupby(groupby).mean()
+
+        # calculate yerr for every alg
+        mins = df.groupby(groupby).min()
+        maxs = df.groupby(groupby).max()
+
+        # combine data
+        means = means.reset_index()
+        mins = mins.reset_index()
+        maxs = maxs.reset_index()
+
+        time_name_max = ycolumn + '_max'
+        time_name_min = ycolumn + '_min'
+        time_name_mean = ycolumn + '_mean'
+
+        data = pd.merge(means, mins, on=groupby, suffixes=('_mean', '_min'))
+
+        data = pd.merge(data, maxs, on=groupby)
+        data = data.rename(columns={ycolumn: time_name_max})
+
+        print(data)
+
+        # plot bar plot with error bars
+        fig, ax = plt.subplots(figsize=(10, 6))
+        alg_data = data
+        ax.bar(
+            alg_data[xcolumn],
+            alg_data[time_name_mean],
+            yerr=[(alg_data[time_name_mean]
+                   - alg_data[time_name_min]),
+                  (alg_data[time_name_max]
+                   - alg_data[time_name_mean])],
+            color=StatPlotter.color
+        )
+        ax.set_xlabel(xlabel)
+        ax.set_ylabel(ylabel)
+        # add title
+        plt.title(title)
+        plt.tight_layout()
+        plt.savefig(f'{output_folder}/plt_{ycolumn}.png')
+
+
+def plot():
+    #     alg, size, keygen_time, sign_time, verify_time
+    time_names_line_plot = ['sign_time', 'verify_time']
+    time_names_bar_plot = ['keygen_time']
+
+    for time_name in time_names_line_plot:
+        df = pd.read_csv('temp/benchmark.csv')
+        other_time = (time_names_line_plot.copy() + time_names_bar_plot.copy())
+        other_time.remove(time_name)
+
+        # Drop other time columns
+        df = df.drop(columns=other_time)
+
+        # convert time from s to ms
+        df[time_name] = df[time_name] * 1000
+
+        StatPlotter.plot_lines(
+            df,
+            'size',
+            time_name,
+            'alg',
+            ['alg', 'size'],
+            f'{str(time_name).capitalize().replace(
+                '_', ' ')} with different algorithms',
+            'File size (MB)', 'Time (ms)',
+            output_folder='temp',
+            m=0.5,
+        )
 
     for time_name in time_names_bar_plot:
         df = pd.read_csv('temp/benchmark.csv')
@@ -264,52 +462,18 @@ def plot():
         # convert time from s to ms
         df[time_name] = df[time_name] * 1000
 
-        # remove outliers
-        df = df.groupby('alg').apply(remove_outliers, m=0.5)
-
-        # calculate average time for every alg for every size by iteration
-        means = df.groupby(['alg']).mean()
-
-        # calculate yerr for every alg
-        mins = df.groupby(['alg']).min()
-        maxs = df.groupby(['alg']).max()
-
-        # combine data
-        means = means.reset_index()
-        mins = mins.reset_index()
-        maxs = maxs.reset_index()
-
-        time_name_max = time_name + '_max'
-        time_name_min = time_name + '_min'
-        time_name_mean = time_name + '_mean'
-
-        data = pd.merge(means, mins, on=['alg'], suffixes=('_mean', '_min'))
-
-        data = pd.merge(data, maxs, on=['alg'])
-        data = data.rename(columns={time_name: time_name_max})
-
-        print(data)
-
-        # plot bar plot with error bars
-        fig, ax = plt.subplots(figsize=(10, 6))
-        alg_data = data
-        ax.bar(
-            alg_data['alg'],
-            alg_data[time_name_mean],
-            yerr=[(alg_data[time_name_mean]
-                   - alg_data[time_name_min]),
-                  (alg_data[time_name_max]
-                   - alg_data[time_name_mean])],
-            color=color
+        StatPlotter.plot_bars(
+            df,
+            'alg',
+            time_name,
+            'alg',
+            ['alg'],
+            f'{str(time_name).capitalize().replace(
+                '_', ' ')} with different algorithms',
+            'Algorithm', 'Time (ms)',
+            output_folder='temp',
+            m=0.5,
         )
-        ax.set_xlabel('Algorithm')
-        ax.set_ylabel('Time (ms)')
-        ax.legend()
-        # add title
-        plt.title('Time of generating keys with different algorithms')
-        plt.tight_layout()
-        # plt.show()
-        plt.savefig(f'temp/plt_{time_name}.png')
 
 
 if __name__ == '__main__':
