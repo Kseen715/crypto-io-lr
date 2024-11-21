@@ -22,6 +22,19 @@ wo_keygen = ['GOST 34.10-2018']
 times = 1000
 
 
+algs = [
+    # 'RSA-SHA256',
+    # 'RSA-SHA512',
+    # 'DSA',
+    # 'ECDSA',
+    # 'GOST 34.10-2012 (SHA256)',
+    # 'GOST 34.10-2012 (SHA512)',
+    'GOST 34.10-2012 (STREEBOG256)',
+    'GOST 34.10-2012 (STREEBOG512)',
+    # 'GOST 34.10-2018 (SHA256)',
+]
+
+
 def test_case(alg, in_sizes):
     try:
         for i in range(times):
@@ -87,15 +100,6 @@ def test_case(alg, in_sizes):
         print(f'[{CYN}BENCH{RST}] {CLR}Error{RST}: {e}', end='\n')
 
 
-algs = [
-    # 'RSA-SHA256',
-    'RSA-SHA512',
-    # 'DSA',
-    # 'ECDSA',
-    # 'GOST 34.10-2018',
-]
-
-
 def benchmark():
     sizes = np.arange(0.5, 8 + 0.1, 0.5)
 
@@ -107,7 +111,7 @@ def benchmark():
 
     try:
         # use multiprocessing to run tests in parallel
-        with multiprocessing.Pool(processes=12) as pool:
+        with multiprocessing.Pool(processes=24) as pool:
             pool.starmap(test_case, [(alg, sizes)
                          for alg in algs])
     except KeyboardInterrupt:
@@ -234,8 +238,10 @@ class StatPlotter():
             title: str = 'Title',
             xlabel: str = 'X axis',
             ylabel: str = 'Y asix',
+            exclude_line_name: list = [],
             m: float = 1e9999,
-            output_folder: str = 'temp'
+            output_folder: str = 'temp',
+            file_postfix: str = '',
     ):
         """
         Plot line plot with error bars
@@ -252,6 +258,9 @@ class StatPlotter():
         (default: 1e9999)
         :param output_folder: output folder for plot (default: 'temp')
         """
+        # exclude alg from exclude_line_name
+        df = df[~df[column_with_line_name].isin(exclude_line_name)]
+
         # remove outliers
         df = df.groupby(groupby).apply(StatPlotter._remove_outliers, m)
 
@@ -324,7 +333,9 @@ class StatPlotter():
                 label=alg,
                 fmt='-o',
                 color=StatPlotter.color[data[column_with_line_name].unique(
-                ).tolist().index(alg)]
+                ).tolist().index(alg)],
+                capsize=4,
+                capthick=1.5,
             )
             alg_data = data[data[column_with_line_name] == alg]
             ax.plot(
@@ -333,14 +344,14 @@ class StatPlotter():
                 label=f'{alg} poly {alg_data["poly"].iloc[0]}',
                 linestyle='--',
                 color=StatPlotter.color[data[column_with_line_name].unique(
-                ).tolist().index(alg)]
+                ).tolist().index(alg)],
             )
         ax.set_xlabel(xlabel)
         ax.set_ylabel(ylabel)
         ax.legend()
         plt.title(title)
         plt.tight_layout()
-        plt.savefig(f'{output_folder}/plt_{ycolumn}.png')
+        plt.savefig(f'{output_folder}/plt_{ycolumn}{file_postfix}.png')
 
     @staticmethod
     def plot_bars(
@@ -353,7 +364,10 @@ class StatPlotter():
             xlabel: str = 'X axis',
             ylabel: str = 'Y asix',
             m: float = 1e9999,
-            output_folder: str = 'temp'
+            exclude_bar_name: list = [],
+            xlabel_rotation: int = 0,
+            output_folder: str = 'temp',
+            file_postfix: str = '',
     ):
         """
         Plot bar plot with error bars
@@ -370,6 +384,9 @@ class StatPlotter():
         (default: 1e9999)
         :param output_folder: output folder for plot (default: 'temp')
         """
+        # exclude alg from exclude_line_name
+        df = df[~df[column_with_line_name].isin(exclude_bar_name)]
+
         # remove outliers
         df = df.groupby(groupby).apply(StatPlotter._remove_outliers, m)
 
@@ -399,6 +416,7 @@ class StatPlotter():
         # plot bar plot with error bars
         fig, ax = plt.subplots(figsize=(10, 6))
         alg_data = data
+
         ax.bar(
             alg_data[xcolumn],
             alg_data[time_name_mean],
@@ -406,14 +424,20 @@ class StatPlotter():
                    - alg_data[time_name_min]),
                   (alg_data[time_name_max]
                    - alg_data[time_name_mean])],
-            color=StatPlotter.color
+            color=StatPlotter.color,
+            error_kw=dict(lw=1, capsize=5, capthick=2),
         )
+        # add number on bottom of bars
+        for i, v in enumerate(alg_data[time_name_mean]):
+            ax.text(i, v, f'{v:.2f}', ha='center', va='bottom')
         ax.set_xlabel(xlabel)
         ax.set_ylabel(ylabel)
         # add title
         plt.title(title)
+        plt.xticks(rotation=xlabel_rotation)
+        # expand fig to fit labels
         plt.tight_layout()
-        plt.savefig(f'{output_folder}/plt_{ycolumn}.png')
+        plt.savefig(f'{output_folder}/plt_{ycolumn}{file_postfix}.png')
 
 
 def plot():
@@ -443,6 +467,37 @@ def plot():
             'File size (MB)', 'Time (ms)',
             output_folder='temp',
             m=0.5,
+            exclude_line_name=[
+                # 'GOST 34.10-2012 (SHA512)',
+                'GOST 34.10-2012 (STREEBOG256)',
+                'GOST 34.10-2012 (STREEBOG512)',
+            ],
+            file_postfix='_smaller',
+        )
+
+    for time_name in time_names_line_plot:
+        df = pd.read_csv('temp/benchmark.csv')
+        other_time = (time_names_line_plot.copy() + time_names_bar_plot.copy())
+        other_time.remove(time_name)
+
+        # Drop other time columns
+        df = df.drop(columns=other_time)
+
+        # convert time from s to ms
+        df[time_name] = df[time_name] * 1000
+
+        StatPlotter.plot_lines(
+            df,
+            'size',
+            time_name,
+            'alg',
+            ['alg', 'size'],
+            f'{str(time_name).capitalize().replace(
+                '_', ' ')} with different algorithms',
+            'File size (MB)', 'Time (ms)',
+            output_folder='temp',
+            m=1e9999,
+            file_postfix='_full',
         )
 
     for time_name in time_names_bar_plot:
@@ -455,9 +510,6 @@ def plot():
 
         # Drop other time columns
         df = df.drop(columns=other_time)
-
-        # Drop lines, where wo_keygen alg is present
-        df = df[~df['alg'].isin(wo_keygen)]
 
         # convert time from s to ms
         df[time_name] = df[time_name] * 1000
@@ -473,6 +525,11 @@ def plot():
             'Algorithm', 'Time (ms)',
             output_folder='temp',
             m=0.5,
+            xlabel_rotation=55,
+            file_postfix='',
+            exclude_bar_name=[
+                'GOST 34.10-2018 (SHA256)',
+            ],
         )
 
 

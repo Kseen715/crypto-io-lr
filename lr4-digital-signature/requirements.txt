@@ -6,6 +6,7 @@ cycler==0.12.1
 enum-compat==0.0.3
 execnet==2.1.1
 fonttools==4.55.0
+gostcrypto==1.2.5
 iniconfig==2.0.0
 kiwisolver==1.4.7
 ksilorama==0.4.10

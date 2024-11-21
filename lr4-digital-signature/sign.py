@@ -12,6 +12,9 @@ from typing import Optional
 from Crypto.Hash import SHA256, SHA512
 from Crypto.PublicKey import RSA, DSA, ECC
 from Crypto.Signature import pkcs1_15, DSS
+from Crypto.Random import get_random_bytes
+from Crypto.IO import PEM
+from gostcrypto import gostsignature, gosthash
 import ksilorama
 
 
@@ -73,7 +76,76 @@ def verify_DSA(data: bytes, signature: bytes, key: DSA.DsaKey) -> bool:
         return True
     except (ValueError, TypeError):
         return False
-    
+
+
+def sign_GOST_34_10_2012_SHA256(data: bytes, private_key) -> bytes:
+    sign_obj = gostsignature.new(gostsignature.MODE_256,
+                                 gostsignature.CURVES_R_1323565_1_024_2019['id-tc26-gost-3410-2012-256-paramSetB'])
+    h = SHA256.new(data)
+    return sign_obj.sign(private_key, h.digest())
+
+
+def verify_GOST_34_10_2012_SHA256(data: bytes, signature: bytes, public_key) -> bool:
+    sign_obj = gostsignature.new(gostsignature.MODE_256,
+                                 gostsignature.CURVES_R_1323565_1_024_2019['id-tc26-gost-3410-2012-256-paramSetB'])
+    h = SHA256.new(data)
+    try:
+        return sign_obj.verify(public_key, h.digest(), signature)
+    except (ValueError, TypeError):
+        return False
+
+
+def sign_GOST_34_10_2012_SHA512(data: bytes, private_key) -> bytes:
+    sign_obj = gostsignature.new(gostsignature.MODE_512,
+                                 gostsignature.CURVES_R_1323565_1_024_2019['id-tc26-gost-3410-12-512-paramSetA'])
+    h = SHA512.new(data)
+    return sign_obj.sign(private_key, h.digest())
+
+
+def verify_GOST_34_10_2012_SHA512(data: bytes, signature: bytes, public_key) -> bool:
+    sign_obj = gostsignature.new(gostsignature.MODE_512,
+                                 gostsignature.CURVES_R_1323565_1_024_2019['id-tc26-gost-3410-12-512-paramSetA'])
+    h = SHA512.new(data)
+    try:
+        return sign_obj.verify(public_key, h.digest(), signature)
+    except (ValueError, TypeError):
+        return False
+
+
+def sign_GOST_34_10_2012_STREEBOG256(data: bytes, private_key) -> bytes:
+    sign_obj = gostsignature.new(gostsignature.MODE_256,
+                                 gostsignature.CURVES_R_1323565_1_024_2019['id-tc26-gost-3410-2012-256-paramSetB'])
+    h = gosthash.new('streebog256', data=data)
+    return sign_obj.sign(private_key, h.digest())
+
+
+def verify_GOST_34_10_2012_STREEBOG256(data: bytes, signature: bytes, public_key) -> bool:
+    sign_obj = gostsignature.new(gostsignature.MODE_256,
+                                 gostsignature.CURVES_R_1323565_1_024_2019['id-tc26-gost-3410-2012-256-paramSetB'])
+    h = gosthash.new('streebog256', data=data)
+    try:
+        return sign_obj.verify(public_key, h.digest(), signature)
+    except (ValueError, TypeError):
+        return False
+
+
+def sign_GOST_34_10_2012_STREEBOG512(data: bytes, private_key) -> bytes:
+    sign_obj = gostsignature.new(gostsignature.MODE_512,
+                                 gostsignature.CURVES_R_1323565_1_024_2019['id-tc26-gost-3410-12-512-paramSetA'])
+    h = gosthash.new('streebog512', data=data)
+    return sign_obj.sign(private_key, h.digest())
+
+
+def verify_GOST_34_10_2012_STREEBOG512(data: bytes, signature: bytes, public_key) -> bool:
+    sign_obj = gostsignature.new(gostsignature.MODE_512,
+                                 gostsignature.CURVES_R_1323565_1_024_2019['id-tc26-gost-3410-12-512-paramSetA'])
+    h = gosthash.new('streebog512', data=data)
+    try:
+        return sign_obj.verify(public_key, h.digest(), signature)
+    except (ValueError, TypeError):
+        return False
+
+
 def generate_key(key_path: Path, alg: str) -> None:
     if alg == 'RSA-SHA256':
         key = RSA.generate(2048)
@@ -91,8 +163,32 @@ def generate_key(key_path: Path, alg: str) -> None:
         key = ECC.generate(curve='P-256')
         with Path(key_path).open('wb') as f:
             f.write(key.export_key(format='PEM').encode())
-    elif alg == 'GOST 34.10-2018':
-        print('GOST 34.10-2018 key generation is not supported')
+    elif alg == 'GOST 34.10-2012 (SHA256)':
+        private_key = get_random_bytes(32)
+        # format keys in PEM and save to file
+        private_key_pem = PEM.encode(private_key, 'PRIVATE KEY')
+        with Path(key_path).open('wb') as f:
+            f.write(private_key_pem.encode())
+    elif alg == 'GOST 34.10-2012 (SHA512)':
+        private_key = get_random_bytes(64)
+        # format keys in PEM and save to file
+        private_key_pem = PEM.encode(private_key, 'PRIVATE KEY')
+        with Path(key_path).open('wb') as f:
+            f.write(private_key_pem.encode())
+    elif alg == 'GOST 34.10-2012 (STREEBOG256)':
+        private_key = get_random_bytes(32)
+        # format keys in PEM and save to file
+        private_key_pem = PEM.encode(private_key, 'PRIVATE KEY')
+        with Path(key_path).open('wb') as f:
+            f.write(private_key_pem.encode())
+    elif alg == 'GOST 34.10-2012 (STREEBOG512)':
+        private_key = get_random_bytes(64)
+        # format keys in PEM and save to file
+        private_key_pem = PEM.encode(private_key, 'PRIVATE KEY')
+        with Path(key_path).open('wb') as f:
+            f.write(private_key_pem.encode())
+    elif alg == 'GOST 34.10-2018 (SHA256)':
+        print('GOST 34.10-2018 (SHA256) key generation is not supported')
 
 
 def sign_file(file: Path, signature_file: Path, key_path: Path, alg: str) -> None:
@@ -139,7 +235,63 @@ def sign_file(file: Path, signature_file: Path, key_path: Path, alg: str) -> Non
             f.write(len(key_data).to_bytes(4, 'big'))
             f.write(key_data.encode())
             f.write(signature)
-    elif alg == 'GOST 34.10-2018':
+    elif alg == 'GOST 34.10-2012 (SHA256)':
+        private_key = PEM.decode(Path(key_path).read_text())[0]
+        with Path(file).open('rb') as f:
+            data = f.read()
+        signature = sign_GOST_34_10_2012_SHA256(data, private_key)
+        sign_obj = gostsignature.new(
+            gostsignature.MODE_256,
+            gostsignature.CURVES_R_1323565_1_024_2019['id-tc26-gost-3410-2012-256-paramSetB'])
+        public_key = sign_obj.public_key_generate(private_key)
+        with Path(signature_file).open('wb') as f:
+            key_data = public_key
+            f.write(len(key_data).to_bytes(4, 'big'))
+            f.write(key_data)
+            f.write(signature)
+    elif alg == 'GOST 34.10-2012 (SHA512)':
+        private_key = PEM.decode(Path(key_path).read_text())[0]
+        with Path(file).open('rb') as f:
+            data = f.read()
+        signature = sign_GOST_34_10_2012_SHA512(data, private_key)
+        sign_obj = gostsignature.new(
+            gostsignature.MODE_512,
+            gostsignature.CURVES_R_1323565_1_024_2019['id-tc26-gost-3410-12-512-paramSetA'])
+        public_key = sign_obj.public_key_generate(private_key)
+        with Path(signature_file).open('wb') as f:
+            key_data = public_key
+            f.write(len(key_data).to_bytes(4, 'big'))
+            f.write(key_data)
+            f.write(signature)
+    elif alg == 'GOST 34.10-2012 (STREEBOG256)':
+        private_key = PEM.decode(Path(key_path).read_text())[0]
+        with Path(file).open('rb') as f:
+            data = f.read()
+        signature = sign_GOST_34_10_2012_STREEBOG256(data, private_key)
+        sign_obj = gostsignature.new(
+            gostsignature.MODE_256,
+            gostsignature.CURVES_R_1323565_1_024_2019['id-tc26-gost-3410-2012-256-paramSetB'])
+        public_key = sign_obj.public_key_generate(private_key)
+        with Path(signature_file).open('wb') as f:
+            key_data = public_key
+            f.write(len(key_data).to_bytes(4, 'big'))
+            f.write(key_data)
+            f.write(signature)
+    elif alg == 'GOST 34.10-2012 (STREEBOG512)':
+        private_key = PEM.decode(Path(key_path).read_text())[0]
+        with Path(file).open('rb') as f:
+            data = f.read()
+        signature = sign_GOST_34_10_2012_STREEBOG512(data, private_key)
+        sign_obj = gostsignature.new(
+            gostsignature.MODE_512,
+            gostsignature.CURVES_R_1323565_1_024_2019['id-tc26-gost-3410-12-512-paramSetA'])
+        public_key = sign_obj.public_key_generate(private_key)
+        with Path(signature_file).open('wb') as f:
+            key_data = public_key
+            f.write(len(key_data).to_bytes(4, 'big'))
+            f.write(key_data)
+            f.write(signature)
+    elif alg == 'GOST 34.10-2018 (SHA256)':
         GOST_R_34_10_2018.elgamal_ecc_sign(file, signature_file)
 
 
@@ -191,10 +343,65 @@ def verify_file(file: Path, signature_file: Path, alg: str) -> bool:
             return True
         except (ValueError, TypeError):
             return False
-    elif alg == 'GOST 34.10-2018':
+    elif alg == 'GOST 34.10-2012 (SHA256)':
+        with Path(signature_file).open('rb') as f:
+            key_len = int.from_bytes(f.read(4), 'big')
+            key = f.read(key_len)
+            signature = f.read()
+        with Path(file).open('rb') as f:
+            data = f.read()
+        if verify_GOST_34_10_2012_SHA256(data, signature, key):
+            return True
+        else:
+            return False
+    elif alg == 'GOST 34.10-2012 (SHA512)':
+        with Path(signature_file).open('rb') as f:
+            key_len = int.from_bytes(f.read(4), 'big')
+            key = f.read(key_len)
+            signature = f.read()
+        with Path(file).open('rb') as f:
+            data = f.read()
+        if verify_GOST_34_10_2012_SHA512(data, signature, key):
+            return True
+        else:
+            return False
+    elif alg == 'GOST 34.10-2012 (STREEBOG256)':
+        with Path(signature_file).open('rb') as f:
+            key_len = int.from_bytes(f.read(4), 'big')
+            key = f.read(key_len)
+            signature = f.read()
+        with Path(file).open('rb') as f:
+            data = f.read()
+        if verify_GOST_34_10_2012_STREEBOG256(data, signature, key):
+            return True
+        else:
+            return False
+    elif alg == 'GOST 34.10-2012 (STREEBOG512)':
+        with Path(signature_file).open('rb') as f:
+            key_len = int.from_bytes(f.read(4), 'big')
+            key = f.read(key_len)
+            signature = f.read()
+        with Path(file).open('rb') as f:
+            data = f.read()
+        if verify_GOST_34_10_2012_STREEBOG512(data, signature, key):
+            return True
+        else:
+            return False
+    elif alg == 'GOST 34.10-2018 (SHA256)':
         return GOST_R_34_10_2018.elgamal_ecc_verify(file, signature_file)
 
-algs = ['RSA-SHA256', 'RSA-SHA512', 'DSA', 'ECDSA', 'GOST 34.10-2018']
+
+algs = [
+    'RSA-SHA256',
+    'RSA-SHA512',
+    'DSA',
+    'ECDSA',
+    'GOST 34.10-2012 (SHA256)',
+    'GOST 34.10-2012 (SHA512)',
+    'GOST 34.10-2012 (STREEBOG256)',
+    'GOST 34.10-2012 (STREEBOG512)',
+    'GOST 34.10-2018 (SHA256)',
+]
 
 if __name__ == '__main__':
 
